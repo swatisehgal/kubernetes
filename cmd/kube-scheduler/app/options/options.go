@@ -50,6 +50,8 @@ import (
 	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	kubeschedulerscheme "k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config/validation"
+
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
 )
 
 // Options has all the params needed to run a Scheduler
@@ -224,6 +226,22 @@ func (o *Options) ApplyTo(c *schedulerappconfig.Config) error {
 	}
 	o.Metrics.Apply()
 	o.Logs.Apply()
+
+	// TODO (a.perevalov) just use client from FrameworkHandle, but now it's impossible to use several RESTClient
+	// simultaneously
+	plCfg := kubeschedulerconfig.PluginConfig{
+		Name: noderesources.TopologyMatchName,
+		Args: &kubeschedulerconfig.TopologyMatchArgs{
+			KubeConfig: c.ComponentConfig.ClientConnection.Kubeconfig,
+			MasterOverride: o.Master,
+		},
+	}
+	//it increases coupling
+	for i := range c.ComponentConfig.Profiles {
+		profile := &c.ComponentConfig.Profiles[i]
+		profile.PluginConfig = append(profile.PluginConfig, plCfg)
+	}
+
 	return nil
 }
 

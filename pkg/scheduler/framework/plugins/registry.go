@@ -73,5 +73,6 @@ func NewInTreeRegistry() runtime.Registry {
 		queuesort.Name:                             queuesort.New,
 		defaultbinder.Name:                         defaultbinder.New,
 		defaultpreemption.Name:                     defaultpreemption.New,
+		noderesources.TopologyMatchName:            noderesources.NewTopologyMatch,
 	}
 }
