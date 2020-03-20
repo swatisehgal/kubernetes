@@ -10,6 +10,7 @@ go_library(
         "requested_to_capacity_ratio.go",
         "resource_allocation.go",
         "test_util.go",
+        "topology_match.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources",
     visibility = ["//visibility:public"],

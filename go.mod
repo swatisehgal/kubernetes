@@ -500,4 +500,6 @@ replace (
 	sigs.k8s.io/structured-merge-diff/v3 => sigs.k8s.io/structured-merge-diff/v3 v3.0.0
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.2.0
 	vbom.ml/util => vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc
+	github.com/AlexeyPerevalov/topologyapi => ./staging/src/github.com/AlexeyPerevalov/topologyapi
+
 )

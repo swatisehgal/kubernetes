@@ -108,6 +108,7 @@ func getDefaultConfig() *schedulerapi.Plugins {
 				{Name: volumezone.Name},
 				{Name: podtopologyspread.Name},
 				{Name: interpodaffinity.Name},
+				{Name: noderesources.TopologyMatchName},
 			},
 		},
 		PostFilter: &schedulerapi.PluginSet{
