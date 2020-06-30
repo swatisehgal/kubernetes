@@ -15,6 +15,11 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
+        "//staging/src/github.com/AlexeyPerevalov/topologyapi/pkg/apis/topology:all-srcs",
+        "//staging/src/github.com/AlexeyPerevalov/topologyapi/pkg/generated/clientset/versioned:all-srcs",
+        "//staging/src/github.com/AlexeyPerevalov/topologyapi/pkg/generated/informers/externalversions:all-srcs",
+        "//staging/src/github.com/AlexeyPerevalov/topologyapi/pkg/generated/listers/topology/v1alpha1:all-srcs",
+        "//staging/src/github.com/AlexeyPerevalov/topologyapi/pkg/signals:all-srcs",
         "//staging/src/k8s.io/api:all-srcs",
         "//staging/src/k8s.io/apiextensions-apiserver:all-srcs",
         "//staging/src/k8s.io/apimachinery:all-srcs",
