@@ -19,6 +19,7 @@ package noderesources
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
@@ -28,16 +29,16 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
-        "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
-	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	bm "k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
+	"k8s.io/kubernetes/pkg/scheduler/apis/config"
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 
 	topologyv1alpha1 "github.com/AlexeyPerevalov/topologyapi/pkg/apis/topology/v1alpha1"
 	topoclientset "github.com/AlexeyPerevalov/topologyapi/pkg/generated/clientset/versioned"
+	topoinformerexternal "github.com/AlexeyPerevalov/topologyapi/pkg/generated/informers/externalversions"
 	topologyinformers "github.com/AlexeyPerevalov/topologyapi/pkg/generated/informers/externalversions"
 	topoinformerv1alpha1 "github.com/AlexeyPerevalov/topologyapi/pkg/generated/informers/externalversions/topology/v1alpha1"
-	topoinformerexternal "github.com/AlexeyPerevalov/topologyapi/pkg/generated/informers/externalversions"
 )
 
 const (
@@ -80,20 +81,25 @@ func (tm *TopologyMatch) Name() string {
 }
 
 func filter(containers []v1.Container, nodes NUMANodeList) *framework.Status {
-	for _, container := range(containers) {
+	for _, container := range containers  {
 		bitmask := bm.NewEmptyBitMask()
 		bitmask.Fill()
 		for resource, quantity := range container.Resources.Requests {
 			resourceBitmask := bm.NewEmptyBitMask()
 			for _, numaNode := range nodes {
 				numaQuantity, ok := numaNode.Resources[resource]
-				if !ok || numaQuantity.Cmp(quantity) < 0 {
+				if !ok {
 					continue
 				}
-				resourceBitmask.Add(numaNode.NUMAID)
-			}
-			if resourceBitmask.IsEmpty() {
-				continue
+				// Check for the following:
+				// 1. set numa node as possible node if resource is memory or Hugepages (until memory manager will not be merged and
+				// memory will not be provided in CRD
+				// 2. otherwise check amount of resources
+				if resource == v1.ResourceMemory ||
+					strings.HasPrefix(string(resource), string(v1.ResourceHugePagesPrefix)) ||
+					numaQuantity.Cmp(quantity) >= 0 {
+					resourceBitmask.Add(numaNode.NUMAID)
+				}
 			}
 			bitmask.And(resourceBitmask)
 		}
@@ -247,10 +253,10 @@ func (tm *TopologyMatch) onTopologyCRDAdd(obj interface{}) {
 // NewTopologyMatch initializes a new plugin and returns it.
 func NewTopologyMatch(args runtime.Object, handle framework.FrameworkHandle) (framework.Plugin, error) {
 	klog.V(5).Infof("creating new TopologyMatch plugin")
-        tcfg, ok := args.(*config.TopologyMatchArgs)
-        if !ok {
-                return nil, fmt.Errorf("want args to be of type TopologyMatchArgs, got %T", args)
-        }
+	tcfg, ok := args.(*config.TopologyMatchArgs)
+	if !ok {
+		return nil, fmt.Errorf("want args to be of type TopologyMatchArgs, got %T", args)
+	}
 
 	topologyMatch := &TopologyMatch{}
 
