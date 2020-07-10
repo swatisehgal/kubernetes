@@ -67,33 +67,24 @@ func (tm *TopologyMatch) Name() string {
 func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource) *framework.Status {
 	for _, container := range containers {
 		bitmask := bm.NewEmptyBitMask()
+		bitmask.Fill()
 		var resourceBitmasks []bm.BitMask
 		for resource, quantity := range container.Resources.Requests {
-			// Skipping memory as memory manager not integrated and does not provide topology hints
-			// TODO: Update when Memory Manager is integrated
-			if resource == v1.ResourceMemory || strings.HasPrefix(string(resource), string(v1.ResourceHugePagesPrefix)) {
-				continue
-			}
 			resourceBitmask := bm.NewEmptyBitMask()
+			// Setting bits in case of memory/hugepages
+			if resource == v1.ResourceMemory ||
+				strings.HasPrefix(string(resource), string(v1.ResourceHugePagesPrefix)) {
+				resourceBitmask.Fill()
+			}
 			for _, numaNode := range nodes {
 				numaQuantity, ok := numaNode.Resources[resource]
-				if !ok {
+				if !ok || numaQuantity.Cmp(quantity) < 0 {
 					continue
 				}
-				// Check for the following:
-				// 1. set numa node as possible node if resource is memory or Hugepages (until memory manager will not be merged and
-				// memory will not be provided in CRD
-				// 2. otherwise check amount of resources
-				if resource == v1.ResourceMemory ||
-					strings.HasPrefix(string(resource), string(v1.ResourceHugePagesPrefix)) ||
-					numaQuantity.Cmp(quantity) >= 0 {
-					resourceBitmask.Add(numaNode.NUMAID)
-					klog.Infof("New :) nodeName: %s resourceBitmasks: %v", nodeName, spew.Sdump(bitmask))
-				}
+				resourceBitmask.Add(numaNode.NUMAID)
 			}
 			resourceBitmasks = append(resourceBitmasks, resourceBitmask)
 		}
-		bitmask = resourceBitmasks[0]
 		bitmask.And(resourceBitmasks...)
 		if bitmask.IsEmpty() {
 			// definitly we can't align container, so we can't align a pod
