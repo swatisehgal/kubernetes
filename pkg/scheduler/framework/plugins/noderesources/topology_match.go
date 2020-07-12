@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -47,7 +48,7 @@ const (
 
 var _ framework.FilterPlugin = &TopologyMatch{}
 
-type NodeTopologyMap map[string]topologyv1alpha1.NodeResourceTopology
+type nodeTopologyMap map[string]topologyv1alpha1.NodeResourceTopology
 
 // TopologyMatch plugin which run simplified version of TopologyManager's admit handler
 type TopologyMatch struct {
@@ -55,7 +56,7 @@ type TopologyMatch struct {
 
 	NodeTopologyInformer    topoinformerv1alpha1.NodeResourceTopologyInformer
 	TopologyInformerFactory topoinformerexternal.SharedInformerFactory
-	NodeTopologies          NodeTopologyMap
+	NodeTopologies          nodeTopologyMap
 	NodeTopologyGuard       sync.RWMutex
 }
 
@@ -64,7 +65,12 @@ func (tm *TopologyMatch) Name() string {
 	return TopologyMatchName
 }
 
-func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource) *framework.Status {
+func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource, qos v1.PodQOSClass) *framework.Status {
+	if qos == v1.PodQOSBestEffort {
+		return nil
+	}
+
+	zeroQuantity := resource.MustParse("0")
 	for _, container := range containers {
 		bitmask := bm.NewEmptyBitMask()
 		bitmask.Fill()
@@ -72,15 +78,21 @@ func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource
 			resourceBitmask := bm.NewEmptyBitMask()
 			for _, numaNode := range nodes {
 				numaQuantity, ok := numaNode.Resources[resource]
-				if !ok {
+				// if can't find requested resource on the node - skip (don't set it as available NUMA node)
+				// if unfound resource has 0 quantity probably this numa node can be considered
+				if !ok && quantity.Cmp(zeroQuantity) != 0{
 					continue
 				}
 				// Check for the following:
 				// 1. set numa node as possible node if resource is memory or Hugepages (until memory manager will not be merged and
 				// memory will not be provided in CRD
-				// 2. otherwise check amount of resources
+				// 2. set numa node as possible node if resource is cpu and it's not guaranteed QoS, since cpu will flow
+				// 3. set numa node as possible node if zero quantity for non existing resource was requested (TODO check topology manaager behaviour)
+				// 4. otherwise check amount of resources
 				if resource == v1.ResourceMemory ||
 					strings.HasPrefix(string(resource), string(v1.ResourceHugePagesPrefix)) ||
+					resource == v1.ResourceCPU && qos != v1.PodQOSGuaranteed ||
+					quantity.Cmp(zeroQuantity) == 0 ||
 					numaQuantity.Cmp(quantity) >= 0 {
 					resourceBitmask.Add(numaNode.NUMAID)
 				}
@@ -100,7 +112,7 @@ func checkTopologyPolicy(topologyPolicy v1.TopologyManagerPolicy) bool {
 	return len(topologyPolicy) > 0 && topologyPolicy == v1.SingleNUMANodeTopologyManagerPolicy
 }
 
-func getTopologyPolicy(nodeTopologies NodeTopologyMap, nodeName string) v1.TopologyManagerPolicy {
+func getTopologyPolicy(nodeTopologies nodeTopologyMap, nodeName string) v1.TopologyManagerPolicy {
 	if nodeTopology, ok := nodeTopologies[nodeName]; ok {
 		return v1.TopologyManagerPolicy(nodeTopology.TopologyPolicy)
 	}
@@ -120,16 +132,12 @@ func (tm *TopologyMatch) Filter(ctx context.Context, cycleState *framework.Cycle
 		return nil
 	}
 
-	if v1qos.GetPodQOS(pod) != v1.PodQOSGuaranteed {
-		klog.V(5).Infof("Not necessary for non-guaranteed pods")
-		return nil
-	}
-
 	containers := []v1.Container{}
 	containers = append(pod.Spec.InitContainers, pod.Spec.Containers...)
 	tm.NodeTopologyGuard.RLock()
 	defer tm.NodeTopologyGuard.RUnlock()
-	return filter(containers, tm.NodeTopologies[nodeName].Nodes)
+
+	return filter(containers, tm.NodeTopologies[nodeName].Nodes, v1qos.GetPodQOS(pod))
 }
 
 func (tm *TopologyMatch) onTopologyCRDFromDelete(obj interface{}) {
@@ -248,7 +256,7 @@ func NewTopologyMatch(args runtime.Object, handle framework.FrameworkHandle) (fr
 	klog.V(5).Infof("start NodeTopologyInformer")
 
 	topologyMatch.handle = handle
-	topologyMatch.NodeTopologies = NodeTopologyMap{}
+	topologyMatch.NodeTopologies = nodeTopologyMap{}
 
 	return topologyMatch, nil
 }
