@@ -432,10 +432,10 @@ func TestUpdateCapacityAllocatable(t *testing.T) {
 	as.True(testManager.isDevicePluginResource(resourceName2))
 }
 
-func constructDevices(devices []string) sets.String {
-	ret := sets.NewString()
+func constructDevices(devices []string) devicePerNUMA {
+	ret := devicePerNUMA{}
 	for _, dev := range devices {
-		ret.Insert(dev)
+		ret[0] = append(ret[0], dev)
 	}
 	return ret
 }
@@ -620,13 +620,11 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 		activePods:            activePods,
 		sourcesReady:          &sourcesReadyStub{},
 		checkpointManager:     ckm,
+		allDevices:            make(map[string]map[string]pluginapi.Device),
 	}
 
 	for _, res := range testRes {
-		testManager.healthyDevices[res.resourceName] = sets.NewString()
-		for _, dev := range res.devs {
-			testManager.healthyDevices[res.resourceName].Insert(dev)
-		}
+		testManager.healthyDevices[res.resourceName] = sets.NewString(res.devs.devices().UnsortedList()...)
 		if res.resourceName == "domain1.com/resource1" {
 			testManager.endpoints[res.resourceName] = endpointInfo{
 				e:    &MockEndpoint{allocateFunc: allocateStubFunc()},
@@ -656,6 +654,8 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 				opts: nil,
 			}
 		}
+		testManager.allDevices[res.resourceName] = makeDevice(res.devs)
+
 	}
 	return testManager, nil
 }
@@ -663,19 +663,19 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 type TestResource struct {
 	resourceName     string
 	resourceQuantity resource.Quantity
-	devs             []string
+	devs             devicePerNUMA
 }
 
 func TestPodContainerDeviceAllocation(t *testing.T) {
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
-		devs:             []string{"dev1", "dev2"},
+		devs:             devicePerNUMA{0: []string{"dev1", "dev2"}},
 	}
 	res2 := TestResource{
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(1), resource.DecimalSI),
-		devs:             []string{"dev3", "dev4"},
+		devs:             devicePerNUMA{0: []string{"dev3", "dev4"}},
 	}
 	testResources := make([]TestResource, 2)
 	testResources = append(testResources, res1)
@@ -766,12 +766,12 @@ func TestInitContainerDeviceAllocation(t *testing.T) {
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
-		devs:             []string{"dev1", "dev2"},
+		devs:             devicePerNUMA{0: []string{"dev1", "dev2"}},
 	}
 	res2 := TestResource{
 		resourceName:     "domain2.com/resource2",
 		resourceQuantity: *resource.NewQuantity(int64(1), resource.DecimalSI),
-		devs:             []string{"dev3", "dev4"},
+		devs:             devicePerNUMA{0: []string{"dev3", "dev4"}},
 	}
 	testResources := make([]TestResource, 2)
 	testResources = append(testResources, res1)
@@ -918,7 +918,7 @@ func TestDevicePreStartContainer(t *testing.T) {
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
-		devs:             []string{"dev1", "dev2"},
+		devs:             devicePerNUMA{0: []string{"dev1", "dev2"}},
 	}
 	as := require.New(t)
 	podsStub := activePodsStub{
@@ -958,7 +958,7 @@ func TestDevicePreStartContainer(t *testing.T) {
 
 	as.Contains(initializedDevs, "dev1")
 	as.Contains(initializedDevs, "dev2")
-	as.Equal(len(initializedDevs), len(res1.devs))
+	as.Equal(len(initializedDevs), res1.devs.devices().Len())
 
 	expectedResps, err := allocateStubFunc()([]string{"dev1", "dev2"})
 	as.Nil(err)
@@ -1053,4 +1053,14 @@ func allocateStubFunc() func(devs []string) (*pluginapi.AllocateResponse, error)
 		resps.ContainerResponses = append(resps.ContainerResponses, resp)
 		return resps, nil
 	}
+}
+
+func makeDevice(devOnNUMA devicePerNUMA) map[string]pluginapi.Device {
+	res := make(map[string]pluginapi.Device)
+	for node, devs := range devOnNUMA {
+		for idx := range devs {
+			res[devs[idx]] = pluginapi.Device{ID: devs[idx], Topology: &pluginapi.TopologyInfo{Nodes: []*pluginapi.NUMANode{{ID: node}}}}
+		}
+	}
+	return res
 }

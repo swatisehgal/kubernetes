@@ -34,7 +34,7 @@ type PodDevicesEntry struct {
 	PodUID        string
 	ContainerName string
 	ResourceName  string
-	DeviceIDs     []string
+	DeviceIDs     map[int64][]string
 	AllocResp     []byte
 }
 
