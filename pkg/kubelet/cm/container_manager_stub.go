@@ -133,6 +133,9 @@ func (cm *containerManagerStub) GetAllDevices() map[string]map[string]pluginapi.
 func (cm *containerManagerStub) GetAllCPUs() []int64 {
 	return nil
 }
+func (cm *containerManagerStub) GetCPUs(_, _ string) []int64 {
+	return nil
+}
 
 func NewStubContainerManager() ContainerManager {
 	return &containerManagerStub{shouldResetExtendedResourceCapacity: false}

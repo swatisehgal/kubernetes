@@ -22,6 +22,8 @@ import (
 	"k8s.io/api/core/v1"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	podresourcesapi "k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
+	"github.com/davecgh/go-spew/spew"
+	"k8s.io/klog/v2"
 )
 
 // DevicesProvider knows how to provide the devices used by the given container
@@ -31,8 +33,9 @@ type DevicesProvider interface {
 	GetAllDevices() map[string]map[string]pluginapi.Device
 }
 
-// CPUsProvider knows how to provide the cpus accounting
+// DevicesProvider knows how to provide the devices used by the given container
 type CPUsProvider interface {
+	GetCPUs(podUID, containerName string) []int64
 	GetAllCPUs() []int64
 }
 
@@ -75,6 +78,7 @@ func (p *podResourcesServer) List(ctx context.Context, req *podresourcesapi.List
 			pRes.Containers[j] = &podresourcesapi.ContainerResources{
 				Name:    container.Name,
 				Devices: p.devicesProvider.GetDevices(string(pod.UID), container.Name),
+				CpuIds:  p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
 			}
 		}
 		podResources[i] = &pRes
@@ -88,20 +92,26 @@ func (p *podResourcesServer) List(ctx context.Context, req *podresourcesapi.List
 // AvailableResources returns information about all the devices known by the server
 func (p *podResourcesServer) GetAvailableResources(context.Context, *podresourcesapi.AvailableResourcesRequest) (*podresourcesapi.AvailableResourcesResponse, error) {
 	allDevices := p.devicesProvider.GetAllDevices()
-
+	klog.Infof("server.go allDevices: %v", spew.Sdump(allDevices))
 	var respDevs []*podresourcesapi.ContainerDevices
-	for resourceName, resourceDevs := range allDevices {
-		var devIds []string
-		for devId := range resourceDevs {
-			if len(devId) > 0 {
-				// TODO: from where these "" come from?
-				devIds = append(devIds, devId)
+
+		for resourceName, resourceDevs := range allDevices {
+		numaDeviceIds := map[int64][]string{}
+		for devId, dev := range resourceDevs {
+			for _, node := range dev.GetTopology().GetNodes() {
+				numaNode := node.GetID()
+				numaDeviceIds[numaNode]= append(numaDeviceIds[numaNode],devId)
 			}
 		}
+	for numaNode, devIds := range numaDeviceIds {
 		respDevs = append(respDevs, &podresourcesapi.ContainerDevices{
 			ResourceName: resourceName,
-			DeviceIds:    devIds,
+			DeviceIds:  devIds,
+			Topology: &podresourcesapi.TopologyInfo{Nodes: []*podresourcesapi.NUMANode{{ID: numaNode}}},
 		})
+	}
+		klog.Infof("server.go GetAvailableResources respDevs: %v", spew.Sdump(respDevs))
+
 	}
 
 	return &podresourcesapi.AvailableResourcesResponse{

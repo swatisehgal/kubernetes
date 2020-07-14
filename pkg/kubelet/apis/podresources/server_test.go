@@ -43,6 +43,11 @@ func (m *mockProvider) GetDevices(podUID, containerName string) []*podresourcesa
 	return args.Get(0).([]*podresourcesapi.ContainerDevices)
 }
 
+func (m *mockProvider) GetCPUs(podUID, containerName string) []int64 {
+	args := m.Called(podUID, containerName)
+	return args.Get(0).([]int64)
+}
+
 func (m *mockProvider) UpdateAllocatedDevices() {
 	m.Called()
 }
@@ -62,25 +67,31 @@ func TestListPodResources(t *testing.T) {
 	podNamespace := "pod-namespace"
 	podUID := types.UID("pod-uid")
 	containerName := "container-name"
+	numaId := int64(1)
 
 	devs := []*podresourcesapi.ContainerDevices{
 		{
 			ResourceName: "resource",
 			DeviceIds:    []string{"dev0", "dev1"},
+			Topology: &podresourcesapi.TopologyInfo{Nodes: []*podresourcesapi.NUMANode{{ID: numaId}}},
 		},
 	}
+
+	cpus := []int64{12, 23, 30}
 
 	for _, tc := range []struct {
 		desc             string
 		pods             []*v1.Pod
-		devices          []*podresourcesapi.ContainerDevices
-		expectedResponse *podresourcesapi.ListPodResourcesResponse
+		devices          []*v1alpha1.ContainerDevices
+		cpus             []int64
+		expectedResponse *v1alpha1.ListPodResourcesResponse
 	}{
 		{
 			desc:             "no pods",
 			pods:             []*v1.Pod{},
-			devices:          []*podresourcesapi.ContainerDevices{},
-			expectedResponse: &podresourcesapi.ListPodResourcesResponse{},
+			devices:          []*v1alpha1.ContainerDevices{},
+			cpus:             []int64{},
+			expectedResponse: &v1alpha1.ListPodResourcesResponse{},
 		},
 		{
 			desc: "pod without devices",
@@ -100,9 +111,10 @@ func TestListPodResources(t *testing.T) {
 					},
 				},
 			},
-			devices: []*podresourcesapi.ContainerDevices{},
-			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
-				PodResources: []*podresourcesapi.PodResources{
+			devices: []*v1alpha1.ContainerDevices{},
+			cpus:    []int64{},
+			expectedResponse: &v1alpha1.ListPodResourcesResponse{
+				PodResources: []*v1alpha1.PodResources{
 					{
 						Name:      podName,
 						Namespace: podNamespace,
@@ -135,8 +147,9 @@ func TestListPodResources(t *testing.T) {
 				},
 			},
 			devices: devs,
-			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
-				PodResources: []*podresourcesapi.PodResources{
+			cpus:    cpus,
+			expectedResponse: &v1alpha1.ListPodResourcesResponse{
+				PodResources: []*v1alpha1.PodResources{
 					{
 						Name:      podName,
 						Namespace: podNamespace,
@@ -144,6 +157,7 @@ func TestListPodResources(t *testing.T) {
 							{
 								Name:    containerName,
 								Devices: devs,
+								CpuIds:  cpus,
 							},
 						},
 					},
@@ -155,9 +169,9 @@ func TestListPodResources(t *testing.T) {
 			m := new(mockProvider)
 			m.On("GetPods").Return(tc.pods)
 			m.On("GetDevices", string(podUID), containerName).Return(tc.devices)
+			m.On("GetCPUs", string(podUID), containerName).Return(tc.cpus)
 			m.On("UpdateAllocatedDevices").Return()
 			server := NewPodResourcesServer(m, m, m)
-
 			resp, err := server.List(context.TODO(), &podresourcesapi.ListPodResourcesRequest{})
 			if err != nil {
 				t.Errorf("want err = %v, got %q", nil, err)

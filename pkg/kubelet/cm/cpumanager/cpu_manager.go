@@ -84,8 +84,12 @@ type Manager interface {
 	// and other resource controllers.
 	GetTopologyHints(*v1.Pod, *v1.Container) map[string][]topologymanager.TopologyHint
 
+
 	// GetAllCPUs returns the slice of online CPU Ids
 	GetAllCPUs() []int64
+	// GetCPUs implements the podresources.GetCPUs interface to provide allocated
+	// cpus for the container
+	GetCPUs(podUID, containerName string) []int64
 }
 
 type manager struct {
@@ -497,4 +501,12 @@ func getOnlineCPUsFromSysFS() (cpuset.CPUSet, error) {
 		return cpuset.CPUSet{}, err
 	}
 	return cpuset.Parse(strings.TrimSpace(string(onlineCPUList)))
+}
+func (m *manager) GetCPUs(podUID, containerName string) []int64 {
+	cpus := m.state.GetCPUSetOrDefault(string(podUID), containerName)
+	result := []int64{}
+	for _, cpu := range cpus.ToSliceNoSort() {
+		result = append(result, int64(cpu))
+	}
+	return result
 }

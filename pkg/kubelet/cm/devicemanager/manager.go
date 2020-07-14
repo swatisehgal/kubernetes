@@ -48,6 +48,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager/cache"
 	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
+	"github.com/davecgh/go-spew/spew"
 	"k8s.io/kubernetes/pkg/util/selinux"
 )
 
@@ -184,6 +185,7 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 		}
 	}
 	m.mutex.Unlock()
+		klog.Infof(" genericDeviceUpdateCallback: devices: %v", spew.Sdump(m.allDevices))
 	if err := m.writeCheckpoint(); err != nil {
 		klog.Errorf("writing checkpoint encountered %v", err)
 	}
@@ -779,7 +781,9 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
 			}
 			perNodeDevices[int(node.ID)].Insert(d)
 		}
+
 	}
+	klog.Infof("filterByAffinity: devices: %v", spew.Sdump(m.allDevices))
 
 	// Get a flat list of all of the nodes associated with available devices.
 	var nodes []int
@@ -902,9 +906,17 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 
 		// Update internal cached podDevices state.
 		m.mutex.Lock()
-		m.podDevices.insert(podUID, contName, resource, allocDevices, resp.ContainerResponses[0])
+		allocDevicesWithNUMA := make(devicePerNUMA)
+		for dev := range allocDevices {
+			for idx := range m.allDevices[resource][dev].Topology.Nodes {
+				node := m.allDevices[resource][dev].Topology.Nodes[idx]
+				allocDevicesWithNUMA[node.ID] = append(allocDevicesWithNUMA[node.ID], dev)
+			}
+		}
+		m.podDevices.insert(podUID, contName, resource, allocDevicesWithNUMA, resp.ContainerResponses[0])
 		m.mutex.Unlock()
 	}
+	klog.Infof("allocateContainerResources: devices: %v", spew.Sdump(m.allDevices))
 
 	// Checkpoints device to container allocation information.
 	return m.writeCheckpoint()
@@ -1046,8 +1058,10 @@ func (m *ManagerImpl) isDevicePluginResource(resource string) bool {
 func (m *ManagerImpl) GetAllDevices() map[string]map[string]pluginapi.Device {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+//	klog.Infof("GetAllDevices in kubelet: known devices: %v", spew.Sdump(m.allDevices))
 	resp := make(map[string]map[string]pluginapi.Device)
 	for resourceName, resourceDevs := range m.allDevices {
+	//	klog.Infof("GetAllDevices in kubelet: resourceName %s resourceDevs: %v", resourceName, spew.Sdump(resourceDevs))
 		resp[resourceName] = make(map[string]pluginapi.Device)
 		for devId, dev := range resourceDevs {
 			resp[resourceName][devId] = dev
