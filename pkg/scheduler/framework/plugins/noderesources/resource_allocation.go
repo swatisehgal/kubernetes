@@ -46,6 +46,7 @@ type resourceToValueMap map[v1.ResourceName]int64
 func (r *resourceAllocationScorer) score(
 	pod *v1.Pod,
 	nodeInfo *framework.NodeInfo) (int64, *framework.Status) {
+		klog.Infof("My-scheduler:resource_allocation.go resourceAllocationScorer.score()")
 	node := nodeInfo.Node()
 	if node == nil {
 		return 0, framework.NewStatus(framework.Error, "node not found")
@@ -90,6 +91,7 @@ func (r *resourceAllocationScorer) score(
 
 // calculateResourceAllocatableRequest returns resources Allocatable and Requested values
 func calculateResourceAllocatableRequest(nodeInfo *framework.NodeInfo, pod *v1.Pod, resource v1.ResourceName) (int64, int64) {
+	klog.Infof("My-scheduler:resource_allocation.go calculateResourceAllocatableRequest()")
 	podRequest := calculatePodResourceRequest(pod, resource)
 	switch resource {
 	case v1.ResourceCPU:
@@ -116,6 +118,7 @@ func calculateResourceAllocatableRequest(nodeInfo *framework.NodeInfo, pod *v1.P
 // PodOverhead feature is enabled, the Overhead is added to the result.
 // podResourceRequest = max(sum(podSpec.Containers), podSpec.InitContainers) + overHead
 func calculatePodResourceRequest(pod *v1.Pod, resource v1.ResourceName) int64 {
+	 klog.Infof("My-scheduler:resource_allocation.go calculatePodResourceRequest()")
 	var podRequest int64
 	for i := range pod.Spec.Containers {
 		container := &pod.Spec.Containers[i]

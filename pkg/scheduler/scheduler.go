@@ -268,6 +268,8 @@ func New(client clientset.Interface,
 	sched.scheduledPodsHasSynced = podInformer.Informer().HasSynced
 
 	addAllEventHandlers(sched, informerFactory, podInformer)
+	klog.Infof("My-scheduler: Returning New Scheduler")
+
 	return sched, nil
 }
 
@@ -309,6 +311,7 @@ func initPolicyFromConfigMap(client clientset.Interface, policyRef *schedulerapi
 
 // Run begins watching and scheduling. It waits for cache to be synced, then starts scheduling and blocked until the context is done.
 func (sched *Scheduler) Run(ctx context.Context) {
+	klog.Infof("My-scheduler: calling Run()")
 	if !cache.WaitForCacheSync(ctx.Done(), sched.scheduledPodsHasSynced) {
 		return
 	}
@@ -343,6 +346,7 @@ func (sched *Scheduler) recordSchedulingFailure(prof *profile.Profile, podInfo *
 }
 
 func updatePod(client clientset.Interface, pod *v1.Pod, condition *v1.PodCondition, nominatedNode string) error {
+	klog.Infof("My-scheduler: called updatePod()")
 	klog.V(3).Infof("Updating pod condition for %s/%s to (%s==%s, Reason=%s)", pod.Namespace, pod.Name, condition.Type, condition.Status, condition.Reason)
 	podCopy := pod.DeepCopy()
 	// NominatedNodeName is updated only if we are trying to set it, and the value is
@@ -382,6 +386,7 @@ func (sched *Scheduler) assume(assumed *v1.Pod, host string) error {
 // The precedence for binding is: (1) extenders and (2) framework plugins.
 // We expect this to run asynchronously, so we handle binding metrics internally.
 func (sched *Scheduler) bind(ctx context.Context, prof *profile.Profile, assumed *v1.Pod, targetNode string, state *framework.CycleState) (err error) {
+	klog.Infof("My-scheduler: called bind()")
 	start := time.Now()
 	defer func() {
 		sched.finishBinding(prof, assumed, targetNode, start, err)
@@ -416,6 +421,7 @@ func (sched *Scheduler) extendersBinding(pod *v1.Pod, node string) (bool, error)
 }
 
 func (sched *Scheduler) finishBinding(prof *profile.Profile, assumed *v1.Pod, targetNode string, start time.Time, err error) {
+	klog.Infof("My-scheduler: called finishBinding()")
 	if finErr := sched.SchedulerCache.FinishBinding(assumed); finErr != nil {
 		klog.Errorf("scheduler cache FinishBinding failed: %v", finErr)
 	}
@@ -434,6 +440,7 @@ func (sched *Scheduler) finishBinding(prof *profile.Profile, assumed *v1.Pod, ta
 
 // scheduleOne does the entire scheduling workflow for a single pod.  It is serialized on the scheduling algorithm's host fitting.
 func (sched *Scheduler) scheduleOne(ctx context.Context) {
+	 klog.Infof("My-scheduler: called scheduleOne()")
 	podInfo := sched.NextPod()
 	// pod could be nil when schedulerQueue is closed
 	if podInfo == nil || podInfo.Pod == nil {

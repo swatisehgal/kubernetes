@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"k8s.io/klog/v2"
 
 	v1 "k8s.io/api/core/v1"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
@@ -95,6 +96,7 @@ func validateFitArgs(args config.NodeResourcesFitArgs) error {
 
 // NewFit initializes a new plugin and returns it.
 func NewFit(plArgs runtime.Object, _ framework.FrameworkHandle) (framework.Plugin, error) {
+	klog.Infof("Swati:fit.go NewFit()")
 	args, err := getFitArgs(plArgs)
 	if err != nil {
 		return nil, err
@@ -111,6 +113,7 @@ func NewFit(plArgs runtime.Object, _ framework.FrameworkHandle) (framework.Plugi
 }
 
 func getFitArgs(obj runtime.Object) (config.NodeResourcesFitArgs, error) {
+	klog.Infof("My-scheduler:plugins,noderesources,fit.go getFitArgs()")
 	ptr, ok := obj.(*config.NodeResourcesFitArgs)
 	if !ok {
 		return config.NodeResourcesFitArgs{}, fmt.Errorf("want args to be of type NodeResourcesFitArgs, got %T", obj)
@@ -146,6 +149,7 @@ func getFitArgs(obj runtime.Object) (config.NodeResourcesFitArgs, error) {
 //
 // Result: CPU: 3, Memory: 3G
 func computePodResourceRequest(pod *v1.Pod) *preFilterState {
+	klog.Infof("Swati:fit.go computePodResourceRequest()")
 	result := &preFilterState{}
 	for _, container := range pod.Spec.Containers {
 		result.Add(container.Resources.Requests)
@@ -166,16 +170,19 @@ func computePodResourceRequest(pod *v1.Pod) *preFilterState {
 
 // PreFilter invoked at the prefilter extension point.
 func (f *Fit) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) *framework.Status {
+	klog.Infof("My-scheduler:plugins,noderesources,fit.go PreFilter()")
 	cycleState.Write(preFilterStateKey, computePodResourceRequest(pod))
 	return nil
 }
 
 // PreFilterExtensions returns prefilter extensions, pod add and remove.
 func (f *Fit) PreFilterExtensions() framework.PreFilterExtensions {
+	klog.Infof("My-scheduler:fit.go PreFilterExtensions()")
 	return nil
 }
 
 func getPreFilterState(cycleState *framework.CycleState) (*preFilterState, error) {
+	klog.Infof("My-scheduler:fit.go getPreFilterState()")
 	c, err := cycleState.Read(preFilterStateKey)
 	if err != nil {
 		// preFilterState doesn't exist, likely PreFilter wasn't invoked.
@@ -193,6 +200,7 @@ func getPreFilterState(cycleState *framework.CycleState) (*preFilterState, error
 // Checks if a node has sufficient resources, such as cpu, memory, gpu, opaque int resources etc to run a pod.
 // It returns a list of insufficient resources, if empty, then the node has all the resources requested by the pod.
 func (f *Fit) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
+	klog.Infof("My-scheduler:fit.go Filter()")
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
 		return framework.NewStatus(framework.Error, err.Error())
@@ -224,10 +232,12 @@ type InsufficientResource struct {
 
 // Fits checks if node have enough resources to host the pod.
 func Fits(pod *v1.Pod, nodeInfo *framework.NodeInfo) []InsufficientResource {
+	klog.Infof("My-scheduler:fit.go Fits()")
 	return fitsRequest(computePodResourceRequest(pod), nodeInfo, nil, nil)
 }
 
 func fitsRequest(podRequest *preFilterState, nodeInfo *framework.NodeInfo, ignoredExtendedResources, ignoredResourceGroups sets.String) []InsufficientResource {
+	klog.Infof("My-scheduler:fit.go fitsRequest()")
 	insufficientResources := make([]InsufficientResource, 0, 4)
 
 	allowedPodNumber := nodeInfo.Allocatable.AllowedPodNumber

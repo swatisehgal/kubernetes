@@ -91,6 +91,7 @@ func (sched *Scheduler) onServiceDelete(obj interface{}) {
 }
 
 func (sched *Scheduler) addNodeToCache(obj interface{}) {
+	  klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.addNodeToCache()")
 	node, ok := obj.(*v1.Node)
 	if !ok {
 		klog.Errorf("cannot convert to *v1.Node: %v", obj)
@@ -134,6 +135,7 @@ func (sched *Scheduler) updateNodeInCache(oldObj, newObj interface{}) {
 }
 
 func (sched *Scheduler) deleteNodeFromCache(obj interface{}) {
+	klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.deleteNodeFromCache()")
 	var node *v1.Node
 	switch t := obj.(type) {
 	case *v1.Node:
@@ -169,6 +171,7 @@ func (sched *Scheduler) onCSINodeUpdate(oldObj, newObj interface{}) {
 }
 
 func (sched *Scheduler) addPodToSchedulingQueue(obj interface{}) {
+	klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.addPodToSchedulingQueue()")
 	pod := obj.(*v1.Pod)
 	klog.V(3).Infof("add event for unscheduled pod %s/%s", pod.Namespace, pod.Name)
 	if err := sched.SchedulingQueue.Add(pod); err != nil {
@@ -177,6 +180,7 @@ func (sched *Scheduler) addPodToSchedulingQueue(obj interface{}) {
 }
 
 func (sched *Scheduler) updatePodInSchedulingQueue(oldObj, newObj interface{}) {
+	 klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.updatePodInSchedulingQueue()")
 	pod := newObj.(*v1.Pod)
 	if sched.skipPodUpdate(pod) {
 		return
@@ -187,6 +191,7 @@ func (sched *Scheduler) updatePodInSchedulingQueue(oldObj, newObj interface{}) {
 }
 
 func (sched *Scheduler) deletePodFromSchedulingQueue(obj interface{}) {
+	klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.deletePodFromSchedulingQueue()")
 	var pod *v1.Pod
 	switch t := obj.(type) {
 	case *v1.Pod:
@@ -217,6 +222,7 @@ func (sched *Scheduler) deletePodFromSchedulingQueue(obj interface{}) {
 }
 
 func (sched *Scheduler) addPodToCache(obj interface{}) {
+	klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.addPodToCache()")
 	pod, ok := obj.(*v1.Pod)
 	if !ok {
 		klog.Errorf("cannot convert to *v1.Pod: %v", obj)
@@ -232,6 +238,7 @@ func (sched *Scheduler) addPodToCache(obj interface{}) {
 }
 
 func (sched *Scheduler) updatePodInCache(oldObj, newObj interface{}) {
+	klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.updatePodInCache()")
 	oldPod, ok := oldObj.(*v1.Pod)
 	if !ok {
 		klog.Errorf("cannot convert oldObj to *v1.Pod: %v", oldObj)
@@ -260,11 +267,12 @@ func (sched *Scheduler) updatePodInCache(oldObj, newObj interface{}) {
 	if err := sched.SchedulerCache.UpdatePod(oldPod, newPod); err != nil {
 		klog.Errorf("scheduler cache UpdatePod failed: %v", err)
 	}
-
+	klog.Infof("My-scheduler:eventhandler.go: calling SchedulingQueue.AssignedPodUpdated()")
 	sched.SchedulingQueue.AssignedPodUpdated(newPod)
 }
 
 func (sched *Scheduler) deletePodFromCache(obj interface{}) {
+	klog.Infof("My-scheduler:eventhandler.go: calling Scheduler.deletePodFromCache()")
 	var pod *v1.Pod
 	switch t := obj.(type) {
 	case *v1.Pod:
@@ -295,11 +303,13 @@ func (sched *Scheduler) deletePodFromCache(obj interface{}) {
 
 // assignedPod selects pods that are assigned (scheduled and running).
 func assignedPod(pod *v1.Pod) bool {
+	klog.Infof("My-scheduler:eventhandler.go calling assignedPod()")
 	return len(pod.Spec.NodeName) != 0
 }
 
 // responsibleForPod returns true if the pod has asked to be scheduled by the given scheduler.
 func responsibleForPod(pod *v1.Pod, profiles profile.Map) bool {
+	klog.Infof("My-scheduler:eventhandler.go calling responsibleForPod()")
 	return profiles.HandlesSchedulerName(pod.Spec.SchedulerName)
 }
 

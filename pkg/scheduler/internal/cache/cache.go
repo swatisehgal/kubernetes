@@ -453,6 +453,8 @@ func (cache *schedulerCache) removePod(pod *v1.Pod) error {
 }
 
 func (cache *schedulerCache) AddPod(pod *v1.Pod) error {
+	klog.Infof("My-scheduler:internal cache.go called AddPod()")
+
 	key, err := framework.GetPodKey(pod)
 	if err != nil {
 		return err
@@ -490,6 +492,7 @@ func (cache *schedulerCache) AddPod(pod *v1.Pod) error {
 }
 
 func (cache *schedulerCache) UpdatePod(oldPod, newPod *v1.Pod) error {
+	 klog.Infof("My-scheduler:internal cache.go called UpdatePod()")
 	key, err := framework.GetPodKey(oldPod)
 	if err != nil {
 		return err
@@ -547,6 +550,7 @@ func (cache *schedulerCache) RemovePod(pod *v1.Pod) error {
 }
 
 func (cache *schedulerCache) IsAssumedPod(pod *v1.Pod) (bool, error) {
+	klog.Infof("My-scheduler:internal cache.go called IsAssumedPod()")
 	key, err := framework.GetPodKey(pod)
 	if err != nil {
 		return false, err
@@ -565,6 +569,7 @@ func (cache *schedulerCache) IsAssumedPod(pod *v1.Pod) (bool, error) {
 // GetPod might return a pod for which its node has already been deleted from
 // the main cache. This is useful to properly process pod update events.
 func (cache *schedulerCache) GetPod(pod *v1.Pod) (*v1.Pod, error) {
+	 klog.Infof("My-scheduler:internal cache.go called GetPod()")
 	key, err := framework.GetPodKey(pod)
 	if err != nil {
 		return nil, err
@@ -582,6 +587,7 @@ func (cache *schedulerCache) GetPod(pod *v1.Pod) (*v1.Pod, error) {
 }
 
 func (cache *schedulerCache) AddNode(node *v1.Node) error {
+	klog.Infof("My-scheduler:internal cache.go called AddNode()")
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -600,6 +606,7 @@ func (cache *schedulerCache) AddNode(node *v1.Node) error {
 }
 
 func (cache *schedulerCache) UpdateNode(oldNode, newNode *v1.Node) error {
+	klog.Infof("My-scheduler:internal cache.go called UpdateNode()")
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -625,6 +632,7 @@ func (cache *schedulerCache) UpdateNode(oldNode, newNode *v1.Node) error {
 // However, some information on pods (assumedPods, podStates) persist. These
 // caches will be eventually consistent as pod deletion events arrive.
 func (cache *schedulerCache) RemoveNode(node *v1.Node) error {
+	klog.Infof("My-scheduler:internal cache.go called RemoveNode()")
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -643,6 +651,7 @@ func (cache *schedulerCache) RemoveNode(node *v1.Node) error {
 // addNodeImageStates adds states of the images on given node to the given nodeInfo and update the imageStates in
 // scheduler cache. This function assumes the lock to scheduler cache has been acquired.
 func (cache *schedulerCache) addNodeImageStates(node *v1.Node, nodeInfo *framework.NodeInfo) {
+	klog.Infof("My-scheduler:internal cache.go called addNodeImageStates()")
 	newSum := make(map[string]*framework.ImageStateSummary)
 
 	for _, image := range node.Status.Images {
@@ -671,6 +680,7 @@ func (cache *schedulerCache) addNodeImageStates(node *v1.Node, nodeInfo *framewo
 // in imageStates cache. After the removal, if any image becomes free, i.e., the image
 // is no longer available on any node, the image entry will be removed from imageStates.
 func (cache *schedulerCache) removeNodeImageStates(node *v1.Node) {
+	klog.Infof("My-scheduler:internal cache.go called removeNodeImageStates()")
 	if node == nil {
 		return
 	}
@@ -692,6 +702,7 @@ func (cache *schedulerCache) removeNodeImageStates(node *v1.Node) {
 }
 
 func (cache *schedulerCache) run() {
+	klog.Infof("My-scheduler:internal cache.go called run()")
 	go wait.Until(cache.cleanupExpiredAssumedPods, cache.period, cache.stop)
 }
 
@@ -727,6 +738,7 @@ func (cache *schedulerCache) cleanupAssumedPods(now time.Time) {
 }
 
 func (cache *schedulerCache) expirePod(key string, ps *podState) error {
+	klog.Infof("My-scheduler:internal cache.go called expirePod()")
 	if err := cache.removePod(ps.pod); err != nil {
 		return err
 	}
