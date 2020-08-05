@@ -1,0 +1,14 @@
+apiVersion: k8s.cncf.io/v1alpha1
+kind: NodeResourceTopology
+metadata:
+  name: cnfd0-worker-0.fci1.kni.lab.eng.bos.redhat.com
+topologyPolicy: "single-numa-node"
+nodes:
+  - NUMAID: 0
+    Resources:
+      cpu: 35
+      openshift.io/sriov: 0
+  - NUMAID: 1
+    Resources:
+      cpu: 40
+      openshift.io/sriov: 5

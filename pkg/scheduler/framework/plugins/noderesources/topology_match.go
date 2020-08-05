@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/davecgh/go-spew/spew"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -65,7 +66,9 @@ func (tm *TopologyMatch) Name() string {
 	return TopologyMatchName
 }
 
-func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource, qos v1.PodQOSClass) *framework.Status {
+func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource, nodeName string, qos v1.PodQOSClass) *framework.Status {
+	klog.Infof("nodeName: %s Calling filter with containers %v: %v", nodeName, spew.Sdump(containers), spew.Sdump(nodes))
+
 	if qos == v1.PodQOSBestEffort {
 		return nil
 	}
@@ -75,12 +78,17 @@ func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource
 		bitmask := bm.NewEmptyBitMask()
 		bitmask.Fill()
 		for resource, quantity := range container.Resources.Requests {
+			klog.Infof("nodeName: %s resource %v quantity :%v", nodeName, resource, quantity)
+
 			resourceBitmask := bm.NewEmptyBitMask()
 			for _, numaNode := range nodes {
 				numaQuantity, ok := numaNode.Resources[resource]
+				klog.Infof("nodeName: %s Numaqty %v requested qty :%v", nodeName, numaQuantity, quantity)
+
 				// if can't find requested resource on the node - skip (don't set it as available NUMA node)
 				// if unfound resource has 0 quantity probably this numa node can be considered
 				if !ok && quantity.Cmp(zeroQuantity) != 0{
+					klog.Infof("nodeName: %v Going to continue: resource: %v quantity: %v", nodeName, resource, quantity)
 					continue
 				}
 				// Check for the following:
@@ -94,10 +102,16 @@ func filter(containers []v1.Container, nodes []topologyv1alpha1.NUMANodeResource
 					resource == v1.ResourceCPU && qos != v1.PodQOSGuaranteed ||
 					quantity.Cmp(zeroQuantity) == 0 ||
 					numaQuantity.Cmp(quantity) >= 0 {
-					resourceBitmask.Add(numaNode.NUMAID)
+						klog.Infof("nodeName: %s Adding numanode :%v resourceBitmask: %v", nodeName, numaNode.NUMAID, spew.Sdump(resourceBitmask))
+						resourceBitmask.Add(numaNode.NUMAID)
+						klog.Infof("nodeName: %s resourceBitmasks: %v", nodeName, spew.Sdump(bitmask))
+
 				}
 			}
+			klog.Infof("nodeName: %s bitmask before AND is: %v", nodeName, bitmask)
 			bitmask.And(resourceBitmask)
+			klog.Infof("nodeName: %s After ANDing bitmask: %v", nodeName, spew.Sdump(bitmask))
+
 		}
 		if bitmask.IsEmpty() {
 			// definitly we can't align container, so we can't align a pod
@@ -121,23 +135,25 @@ func getTopologyPolicy(nodeTopologies nodeTopologyMap, nodeName string) v1.Topol
 
 // Filter Now only single-numa-node supported
 func (tm *TopologyMatch) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
+	klog.Infof("TopologyAwareSchedulerPlugin: Filter was called for pod %s and node %+v", pod.Name, nodeInfo.Node().Name)
+
 	if nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.Error, fmt.Sprintf("Node is nil %s", nodeInfo.Node().Name))
 	}
 	nodeName := nodeInfo.Node().Name
 
-	topologyPolicy := getTopologyPolicy(tm.NodeTopologies, nodeName)
-	if !checkTopologyPolicy(topologyPolicy) {
-		klog.V(5).Infof("Incorrect topology policy or topology policy is not specified: %s", topologyPolicy)
-		return nil
-	}
+	// topologyPolicy := getTopologyPolicy(tm.NodeTopologies, nodeName)
+	// if !checkTopologyPolicy(topologyPolicy) {
+	// 	klog.V(5).Infof("Incorrect topology policy or topology policy is not specified: %s", topologyPolicy)
+	// 	return nil
+	// }
 
 	containers := []v1.Container{}
 	containers = append(pod.Spec.InitContainers, pod.Spec.Containers...)
 	tm.NodeTopologyGuard.RLock()
 	defer tm.NodeTopologyGuard.RUnlock()
 
-	return filter(containers, tm.NodeTopologies[nodeName].Nodes, v1qos.GetPodQOS(pod))
+	return filter(containers, tm.NodeTopologies[nodeName].Nodes, nodeName, v1qos.GetPodQOS(pod))
 }
 
 func (tm *TopologyMatch) onTopologyCRDFromDelete(obj interface{}) {
