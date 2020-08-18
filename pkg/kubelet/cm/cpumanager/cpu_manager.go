@@ -465,12 +465,17 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 			CpusetCpus: cpus.String(),
 		})
 }
-
 func (m *manager) GetCPUs(podUID, containerName string) []uint32 {
+	klog.Infof("[cpumanager] GetCPUs: updating container (pod: %s, container: %s:)", podUID, containerName)
+
 	cpus := m.state.GetCPUSetOrDefault(string(podUID), containerName)
+	klog.Infof("[cpumanager] After cpusetorDefault cpusetorDefault cpus %v)", cpus)
+//	cpus, _ := m.state.GetCPUSet(string(podUID), containerName)
 	result := []uint32{}
-	for cpu := range cpus.ToSliceNoSort() {
+	for _, cpu := range cpus.ToSliceNoSort() {
 		result = append(result, uint32(cpu))
 	}
+	klog.Infof("[cpumanager] After calling cpus.ToSliceNoSort: updating container (pod: %s, container: %s, result: \"%v\")", podUID, containerName, result)
+
 	return result
 }
