@@ -18,7 +18,9 @@ package cpumanager
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +38,10 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/status"
+)
+
+const (
+	sysfsOnlineCPUs = "/sys/devices/system/cpu/online"
 )
 
 // ActivePodsFunc is a function that returns a list of pods to reconcile.
@@ -120,8 +126,8 @@ type manager struct {
 	// stateFileDirectory holds the directory where the state file for checkpoints is held.
 	stateFileDirectory string
 
-	// TODO
-	topo *topology.CPUTopology
+	// onlineCPUSet is the set of online CPUs as reported by the system
+	onlineCPUs cpuset.CPUSet
 }
 
 var _ Manager = &manager{}
@@ -135,13 +141,13 @@ func (s *sourcesReadyStub) AllReady() bool          { return true }
 func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo *cadvisorapi.MachineInfo, specificCPUs cpuset.CPUSet, nodeAllocatableReservation v1.ResourceList, stateFileDirectory string, affinity topologymanager.Store) (Manager, error) {
 	var topo *topology.CPUTopology
 	var policy Policy
+	var onlineCPUs cpuset.CPUSet
 	var err error
 
-	topo, err = topology.Discover(machineInfo)
+	onlineCPUs, err = getOnlineCPUsFromSysFS()
 	if err != nil {
 		return nil, err
 	}
-	klog.Infof("[cpumanager] detected CPU topology: %v", topo)
 
 	switch policyName(cpuPolicyName) {
 
@@ -149,6 +155,12 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 		policy = NewNonePolicy()
 
 	case PolicyStatic:
+		topo, err = topology.Discover(machineInfo)
+		if err != nil {
+			return nil, err
+		}
+		klog.Infof("[cpumanager] detected CPU topology: %v", topo)
+
 		reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
 		if !ok {
 			// The static policy cannot initialize without this information.
@@ -182,7 +194,7 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 		topology:                   topo,
 		nodeAllocatableReservation: nodeAllocatableReservation,
 		stateFileDirectory:         stateFileDirectory,
-		topo:                       topo,
+		onlineCPUs:                 onlineCPUs,
 	}
 	manager.sourcesReady = &sourcesReadyStub{}
 	return manager, nil
@@ -309,8 +321,7 @@ func (m *manager) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[str
 }
 
 func (m *manager) GetAllCPUs() []int64 {
-	cores := m.topo.CPUDetails.Cores()
-	cpus := cores.ToSlice()
+	cpus := m.onlineCPUs.ToSlice()
 	cpuIds := make([]int64, len(cpus))
 	for idx, cpuId := range cpus {
 		cpuIds[idx] = int64(cpuId)
@@ -478,4 +489,12 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 		&runtimeapi.LinuxContainerResources{
 			CpusetCpus: cpus.String(),
 		})
+}
+
+func getOnlineCPUsFromSysFS() (cpuset.CPUSet, error) {
+	onlineCPUList, err := ioutil.ReadFile(sysfsOnlineCPUs)
+	if err != nil {
+		return cpuset.CPUSet{}, err
+	}
+	return cpuset.Parse(strings.TrimSpace(string(onlineCPUList)))
 }
