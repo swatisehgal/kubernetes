@@ -45,22 +45,22 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type AvailableResourcesRequest struct {
+type AllocatableResourcesRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *AvailableResourcesRequest) Reset()      { *m = AvailableResourcesRequest{} }
-func (*AvailableResourcesRequest) ProtoMessage() {}
-func (*AvailableResourcesRequest) Descriptor() ([]byte, []int) {
+func (m *AllocatableResourcesRequest) Reset()      { *m = AllocatableResourcesRequest{} }
+func (*AllocatableResourcesRequest) ProtoMessage() {}
+func (*AllocatableResourcesRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_00212fb1f9d3bf1c, []int{0}
 }
-func (m *AvailableResourcesRequest) XXX_Unmarshal(b []byte) error {
+func (m *AllocatableResourcesRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *AvailableResourcesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *AllocatableResourcesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_AvailableResourcesRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_AllocatableResourcesRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -70,37 +70,37 @@ func (m *AvailableResourcesRequest) XXX_Marshal(b []byte, deterministic bool) ([
 		return b[:n], nil
 	}
 }
-func (m *AvailableResourcesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AvailableResourcesRequest.Merge(m, src)
+func (m *AllocatableResourcesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AllocatableResourcesRequest.Merge(m, src)
 }
-func (m *AvailableResourcesRequest) XXX_Size() int {
+func (m *AllocatableResourcesRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *AvailableResourcesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_AvailableResourcesRequest.DiscardUnknown(m)
+func (m *AllocatableResourcesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AllocatableResourcesRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_AvailableResourcesRequest proto.InternalMessageInfo
+var xxx_messageInfo_AllocatableResourcesRequest proto.InternalMessageInfo
 
-// AvailableResourcesResponses contains informations about all the devices known by the kubelet
-type AvailableResourcesResponse struct {
+// AllocatableResourcesResponse contains informations about all the devices known by the kubelet
+type AllocatableResourcesResponse struct {
 	Devices              []*ContainerDevices `protobuf:"bytes,1,rep,name=devices,proto3" json:"devices,omitempty"`
 	CpuIds               []int64             `protobuf:"varint,2,rep,packed,name=cpu_ids,json=cpuIds,proto3" json:"cpu_ids,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
 	XXX_sizecache        int32               `json:"-"`
 }
 
-func (m *AvailableResourcesResponse) Reset()      { *m = AvailableResourcesResponse{} }
-func (*AvailableResourcesResponse) ProtoMessage() {}
-func (*AvailableResourcesResponse) Descriptor() ([]byte, []int) {
+func (m *AllocatableResourcesResponse) Reset()      { *m = AllocatableResourcesResponse{} }
+func (*AllocatableResourcesResponse) ProtoMessage() {}
+func (*AllocatableResourcesResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_00212fb1f9d3bf1c, []int{1}
 }
-func (m *AvailableResourcesResponse) XXX_Unmarshal(b []byte) error {
+func (m *AllocatableResourcesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *AvailableResourcesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *AllocatableResourcesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_AvailableResourcesResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_AllocatableResourcesResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -110,26 +110,26 @@ func (m *AvailableResourcesResponse) XXX_Marshal(b []byte, deterministic bool) (
 		return b[:n], nil
 	}
 }
-func (m *AvailableResourcesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AvailableResourcesResponse.Merge(m, src)
+func (m *AllocatableResourcesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AllocatableResourcesResponse.Merge(m, src)
 }
-func (m *AvailableResourcesResponse) XXX_Size() int {
+func (m *AllocatableResourcesResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *AvailableResourcesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_AvailableResourcesResponse.DiscardUnknown(m)
+func (m *AllocatableResourcesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_AllocatableResourcesResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_AvailableResourcesResponse proto.InternalMessageInfo
+var xxx_messageInfo_AllocatableResourcesResponse proto.InternalMessageInfo
 
-func (m *AvailableResourcesResponse) GetDevices() []*ContainerDevices {
+func (m *AllocatableResourcesResponse) GetDevices() []*ContainerDevices {
 	if m != nil {
 		return m.Devices
 	}
 	return nil
 }
 
-func (m *AvailableResourcesResponse) GetCpuIds() []int64 {
+func (m *AllocatableResourcesResponse) GetCpuIds() []int64 {
 	if m != nil {
 		return m.CpuIds
 	}
@@ -499,8 +499,8 @@ func (m *NUMANode) GetID() int64 {
 }
 
 func init() {
-	proto.RegisterType((*AvailableResourcesRequest)(nil), "v1alpha1.AvailableResourcesRequest")
-	proto.RegisterType((*AvailableResourcesResponse)(nil), "v1alpha1.AvailableResourcesResponse")
+	proto.RegisterType((*AllocatableResourcesRequest)(nil), "v1alpha1.AllocatableResourcesRequest")
+	proto.RegisterType((*AllocatableResourcesResponse)(nil), "v1alpha1.AllocatableResourcesResponse")
 	proto.RegisterType((*ListPodResourcesRequest)(nil), "v1alpha1.ListPodResourcesRequest")
 	proto.RegisterType((*ListPodResourcesResponse)(nil), "v1alpha1.ListPodResourcesResponse")
 	proto.RegisterType((*PodResources)(nil), "v1alpha1.PodResources")
@@ -513,38 +513,38 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 486 bytes of a gzipped FileDescriptorProto
+	// 487 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0xcd, 0xda, 0xa5, 0x8d, 0x87, 0x14, 0xa1, 0x91, 0xa0, 0xae, 0x09, 0x56, 0xd8, 0x72, 0xc8,
-	0x85, 0x54, 0x0d, 0x1c, 0x90, 0xe0, 0x52, 0x88, 0x84, 0x22, 0x41, 0x40, 0x2b, 0x10, 0xc7, 0xc8,
-	0xf1, 0x6e, 0x53, 0x8b, 0xd4, 0xbb, 0x78, 0xed, 0x20, 0x2e, 0x88, 0x33, 0x27, 0x7e, 0x56, 0x25,
-	0x2e, 0x1c, 0x39, 0xd2, 0xf0, 0x47, 0x50, 0xd6, 0x71, 0xec, 0x90, 0xb4, 0x07, 0x4e, 0x9e, 0x99,
-	0xf7, 0x66, 0xf6, 0x79, 0x3e, 0xc0, 0x09, 0x54, 0xd4, 0x51, 0x89, 0x4c, 0x25, 0xd6, 0xa7, 0x47,
-	0xc1, 0x44, 0x9d, 0x06, 0x47, 0xde, 0x83, 0x71, 0x94, 0x9e, 0x66, 0xa3, 0x4e, 0x28, 0xcf, 0x0e,
-	0xc7, 0x72, 0x2c, 0x0f, 0x0d, 0x61, 0x94, 0x9d, 0x18, 0xcf, 0x38, 0xc6, 0xca, 0x13, 0xe9, 0x1d,
-	0xd8, 0x3f, 0x9e, 0x06, 0xd1, 0x24, 0x18, 0x4d, 0x04, 0x13, 0x5a, 0x66, 0x49, 0x28, 0x34, 0x13,
-	0x1f, 0x33, 0xa1, 0x53, 0xfa, 0x01, 0xbc, 0x4d, 0xa0, 0x56, 0x32, 0xd6, 0x02, 0x1f, 0xc1, 0x0e,
-	0x17, 0xd3, 0x28, 0x14, 0xda, 0x25, 0x2d, 0xbb, 0x7d, 0xbd, 0xeb, 0x75, 0x0a, 0x15, 0x9d, 0xe7,
-	0x32, 0x4e, 0x83, 0x28, 0x16, 0x49, 0x2f, 0x67, 0xb0, 0x82, 0x8a, 0x7b, 0xb0, 0x13, 0xaa, 0x6c,
-	0x18, 0x71, 0xed, 0x5a, 0x2d, 0xbb, 0x6d, 0xb3, 0xed, 0x50, 0x65, 0x7d, 0xae, 0xe9, 0x3e, 0xec,
-	0xbd, 0x8c, 0x74, 0xfa, 0x46, 0xf2, 0x35, 0x1d, 0xef, 0xc1, 0x5d, 0x87, 0x16, 0x2a, 0x9e, 0xc0,
-	0xae, 0x92, 0x7c, 0x98, 0x14, 0xc0, 0x42, 0xcb, 0xed, 0x52, 0xcb, 0x4a, 0x5a, 0x43, 0x55, 0x3c,
-	0xfa, 0x05, 0x1a, 0x55, 0x14, 0x11, 0xb6, 0xe2, 0xe0, 0x4c, 0xb8, 0xa4, 0x45, 0xda, 0x0e, 0x33,
-	0x36, 0x36, 0xc1, 0x99, 0x7f, 0xb5, 0x0a, 0x42, 0xe1, 0x5a, 0x06, 0x28, 0x03, 0xf8, 0x14, 0x20,
-	0x2c, 0xfe, 0x55, 0xbb, 0xb6, 0x79, 0xbb, 0xb9, 0xa1, 0x0f, 0xa5, 0x82, 0x0a, 0x9f, 0x7e, 0x02,
-	0x5c, 0x67, 0x6c, 0x54, 0x51, 0x69, 0xb6, 0xf5, 0x5f, 0xcd, 0xb6, 0x57, 0x9a, 0xfd, 0x8d, 0xc0,
-	0xcd, 0x7f, 0xd3, 0xf0, 0x00, 0x76, 0x8b, 0x36, 0x0e, 0x2b, 0x02, 0x1a, 0x45, 0x70, 0x30, 0x17,
-	0x72, 0x17, 0x20, 0xaf, 0xbe, 0x1c, 0xa1, 0xc3, 0x9c, 0x3c, 0xd2, 0xe7, 0x1a, 0xbb, 0x50, 0x4f,
-	0xa5, 0x92, 0x13, 0x39, 0xfe, 0xec, 0xda, 0x2d, 0xb2, 0x3a, 0x89, 0xb7, 0x0b, 0xa4, 0x1f, 0x9f,
-	0x48, 0xb6, 0xe4, 0xd1, 0xc7, 0xd0, 0xa8, 0x22, 0xd8, 0x86, 0x6b, 0xb1, 0xe4, 0xcb, 0x51, 0x62,
-	0x59, 0x60, 0xf0, 0xee, 0xd5, 0xf1, 0x40, 0x72, 0xc1, 0x72, 0x02, 0xf5, 0xa0, 0x5e, 0x84, 0xf0,
-	0x06, 0x58, 0xfd, 0x9e, 0x91, 0x6c, 0x33, 0x2b, 0xea, 0x75, 0x7f, 0x10, 0xc0, 0xea, 0x70, 0xe7,
-	0x1b, 0x24, 0x12, 0x7c, 0x0d, 0x5b, 0x73, 0x0b, 0xef, 0x95, 0x55, 0x2f, 0x59, 0x3b, 0x8f, 0x5e,
-	0x45, 0xc9, 0xd7, 0x8f, 0xd6, 0x90, 0xc3, 0xad, 0x17, 0x22, 0x5d, 0xbf, 0x13, 0x3c, 0x28, 0xd3,
-	0x2f, 0x3d, 0x31, 0xef, 0xfe, 0xd5, 0xa4, 0xe2, 0x95, 0x67, 0xcd, 0xf3, 0x0b, 0x9f, 0xfc, 0xba,
-	0xf0, 0x6b, 0x5f, 0x67, 0x3e, 0x39, 0x9f, 0xf9, 0xe4, 0xe7, 0xcc, 0x27, 0xbf, 0x67, 0x3e, 0xf9,
-	0xfe, 0xc7, 0xaf, 0x8d, 0xb6, 0xcd, 0x31, 0x3f, 0xfc, 0x1b, 0x00, 0x00, 0xff, 0xff, 0x15, 0x47,
-	0x7b, 0x46, 0x12, 0x04, 0x00, 0x00,
+	0x10, 0xcd, 0xda, 0xa5, 0x8d, 0x87, 0x14, 0xa1, 0x39, 0x10, 0x63, 0x52, 0x2b, 0x2c, 0x02, 0xe5,
+	0x42, 0xaa, 0x06, 0x0e, 0x48, 0x70, 0x29, 0x44, 0x42, 0x91, 0x20, 0xa0, 0x15, 0x88, 0x63, 0xe4,
+	0xd8, 0xdb, 0xd4, 0xc8, 0xf1, 0x2e, 0x5e, 0xbb, 0x88, 0x0b, 0xe2, 0xcc, 0x89, 0x9f, 0xd5, 0x23,
+	0xdc, 0x38, 0xd2, 0xf0, 0x47, 0x50, 0xd6, 0x71, 0xec, 0x90, 0x10, 0xa4, 0x9e, 0x3c, 0x33, 0xef,
+	0xcd, 0xec, 0xf3, 0x7c, 0x80, 0xe5, 0xc9, 0xb0, 0x2b, 0x13, 0x91, 0x0a, 0xac, 0x9f, 0x1d, 0x79,
+	0x91, 0x3c, 0xf5, 0x8e, 0x9c, 0xfb, 0x93, 0x30, 0x3d, 0xcd, 0xc6, 0x5d, 0x5f, 0x4c, 0x0f, 0x27,
+	0x62, 0x22, 0x0e, 0x35, 0x61, 0x9c, 0x9d, 0x68, 0x4f, 0x3b, 0xda, 0xca, 0x13, 0xe9, 0x01, 0xdc,
+	0x3a, 0x8e, 0x22, 0xe1, 0x7b, 0xa9, 0x37, 0x8e, 0x38, 0xe3, 0x4a, 0x64, 0x89, 0xcf, 0x15, 0xe3,
+	0x1f, 0x32, 0xae, 0x52, 0x3a, 0x85, 0xd6, 0x66, 0x58, 0x49, 0x11, 0x2b, 0x8e, 0x0f, 0x61, 0x2f,
+	0xe0, 0x67, 0xa1, 0xcf, 0x95, 0x4d, 0xda, 0x66, 0xe7, 0x6a, 0xcf, 0xe9, 0x16, 0x4a, 0xba, 0xcf,
+	0x44, 0x9c, 0x7a, 0x61, 0xcc, 0x93, 0x7e, 0xce, 0x60, 0x05, 0x15, 0x9b, 0xb0, 0xe7, 0xcb, 0x6c,
+	0x14, 0x06, 0xca, 0x36, 0xda, 0x66, 0xc7, 0x64, 0xbb, 0xbe, 0xcc, 0x06, 0x81, 0xa2, 0x37, 0xa1,
+	0xf9, 0x22, 0x54, 0xe9, 0x6b, 0x11, 0xac, 0x29, 0x79, 0x07, 0xf6, 0x3a, 0xb4, 0x50, 0xf1, 0x18,
+	0xf6, 0xa5, 0x08, 0x46, 0x49, 0x01, 0x2c, 0xb4, 0xdc, 0x28, 0xb5, 0xac, 0xa4, 0x35, 0x64, 0xc5,
+	0xa3, 0x9f, 0xa1, 0x51, 0x45, 0x11, 0x61, 0x27, 0xf6, 0xa6, 0xdc, 0x26, 0x6d, 0xd2, 0xb1, 0x98,
+	0xb6, 0xb1, 0x05, 0xd6, 0xfc, 0xab, 0xa4, 0xe7, 0x73, 0xdb, 0xd0, 0x40, 0x19, 0xc0, 0x27, 0x00,
+	0x7e, 0xf1, 0xaf, 0xca, 0x36, 0xf5, 0xdb, 0xad, 0x0d, 0x7d, 0x28, 0x15, 0x54, 0xf8, 0xf4, 0x23,
+	0xe0, 0x3a, 0x63, 0xa3, 0x8a, 0x4a, 0xb3, 0x8d, 0x4b, 0x35, 0xdb, 0x5c, 0x69, 0xf6, 0x57, 0x02,
+	0xd7, 0xff, 0x4e, 0xc3, 0x3b, 0xb0, 0x5f, 0xb4, 0x71, 0x54, 0x11, 0xd0, 0x28, 0x82, 0xc3, 0xb9,
+	0x90, 0x03, 0x80, 0xbc, 0xfa, 0x72, 0x84, 0x16, 0xb3, 0xf2, 0xc8, 0x20, 0x50, 0xd8, 0x83, 0x7a,
+	0x2a, 0xa4, 0x88, 0xc4, 0xe4, 0x93, 0x6d, 0xb6, 0xc9, 0xea, 0x24, 0xde, 0x2c, 0x90, 0x41, 0x7c,
+	0x22, 0xd8, 0x92, 0x47, 0x1f, 0x41, 0xa3, 0x8a, 0x60, 0x07, 0xae, 0xc4, 0x22, 0x58, 0x8e, 0x12,
+	0xcb, 0x02, 0xc3, 0xb7, 0x2f, 0x8f, 0x87, 0x22, 0xe0, 0x2c, 0x27, 0x50, 0x07, 0xea, 0x45, 0x08,
+	0xaf, 0x81, 0x31, 0xe8, 0x6b, 0xc9, 0x26, 0x33, 0xc2, 0x7e, 0xef, 0x07, 0x01, 0xac, 0x0e, 0x77,
+	0xbe, 0x41, 0x3c, 0xc1, 0x57, 0xb0, 0x33, 0xb7, 0xf0, 0x76, 0x59, 0xf5, 0x1f, 0x6b, 0xe7, 0xd0,
+	0x6d, 0x94, 0x7c, 0xfd, 0x68, 0x0d, 0xdf, 0x43, 0xf3, 0x39, 0x4f, 0x37, 0x5d, 0x0a, 0xde, 0x2d,
+	0x0b, 0x6c, 0x39, 0x34, 0xe7, 0xde, 0xff, 0x68, 0xc5, 0x5b, 0x4f, 0x5b, 0xe7, 0x17, 0x2e, 0xf9,
+	0x79, 0xe1, 0xd6, 0xbe, 0xcc, 0x5c, 0x72, 0x3e, 0x73, 0xc9, 0xf7, 0x99, 0x4b, 0x7e, 0xcd, 0x5c,
+	0xf2, 0xed, 0xb7, 0x5b, 0x1b, 0xef, 0xea, 0xb3, 0x7e, 0xf0, 0x27, 0x00, 0x00, 0xff, 0xff, 0x91,
+	0xe1, 0xcc, 0xb6, 0x1c, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -560,7 +560,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type PodResourcesListerClient interface {
 	List(ctx context.Context, in *ListPodResourcesRequest, opts ...grpc.CallOption) (*ListPodResourcesResponse, error)
-	GetAvailableResources(ctx context.Context, in *AvailableResourcesRequest, opts ...grpc.CallOption) (*AvailableResourcesResponse, error)
+	GetAllocatableResources(ctx context.Context, in *AllocatableResourcesRequest, opts ...grpc.CallOption) (*AllocatableResourcesResponse, error)
 }
 
 type podResourcesListerClient struct {
@@ -580,9 +580,9 @@ func (c *podResourcesListerClient) List(ctx context.Context, in *ListPodResource
 	return out, nil
 }
 
-func (c *podResourcesListerClient) GetAvailableResources(ctx context.Context, in *AvailableResourcesRequest, opts ...grpc.CallOption) (*AvailableResourcesResponse, error) {
-	out := new(AvailableResourcesResponse)
-	err := c.cc.Invoke(ctx, "/v1alpha1.PodResourcesLister/GetAvailableResources", in, out, opts...)
+func (c *podResourcesListerClient) GetAllocatableResources(ctx context.Context, in *AllocatableResourcesRequest, opts ...grpc.CallOption) (*AllocatableResourcesResponse, error) {
+	out := new(AllocatableResourcesResponse)
+	err := c.cc.Invoke(ctx, "/v1alpha1.PodResourcesLister/GetAllocatableResources", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -592,7 +592,7 @@ func (c *podResourcesListerClient) GetAvailableResources(ctx context.Context, in
 // PodResourcesListerServer is the server API for PodResourcesLister service.
 type PodResourcesListerServer interface {
 	List(context.Context, *ListPodResourcesRequest) (*ListPodResourcesResponse, error)
-	GetAvailableResources(context.Context, *AvailableResourcesRequest) (*AvailableResourcesResponse, error)
+	GetAllocatableResources(context.Context, *AllocatableResourcesRequest) (*AllocatableResourcesResponse, error)
 }
 
 // UnimplementedPodResourcesListerServer can be embedded to have forward compatible implementations.
@@ -602,8 +602,8 @@ type UnimplementedPodResourcesListerServer struct {
 func (*UnimplementedPodResourcesListerServer) List(ctx context.Context, req *ListPodResourcesRequest) (*ListPodResourcesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 }
-func (*UnimplementedPodResourcesListerServer) GetAvailableResources(ctx context.Context, req *AvailableResourcesRequest) (*AvailableResourcesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAvailableResources not implemented")
+func (*UnimplementedPodResourcesListerServer) GetAllocatableResources(ctx context.Context, req *AllocatableResourcesRequest) (*AllocatableResourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllocatableResources not implemented")
 }
 
 func RegisterPodResourcesListerServer(s *grpc.Server, srv PodResourcesListerServer) {
@@ -628,20 +628,20 @@ func _PodResourcesLister_List_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PodResourcesLister_GetAvailableResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AvailableResourcesRequest)
+func _PodResourcesLister_GetAllocatableResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllocatableResourcesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PodResourcesListerServer).GetAvailableResources(ctx, in)
+		return srv.(PodResourcesListerServer).GetAllocatableResources(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/v1alpha1.PodResourcesLister/GetAvailableResources",
+		FullMethod: "/v1alpha1.PodResourcesLister/GetAllocatableResources",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PodResourcesListerServer).GetAvailableResources(ctx, req.(*AvailableResourcesRequest))
+		return srv.(PodResourcesListerServer).GetAllocatableResources(ctx, req.(*AllocatableResourcesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -655,15 +655,15 @@ var _PodResourcesLister_serviceDesc = grpc.ServiceDesc{
 			Handler:    _PodResourcesLister_List_Handler,
 		},
 		{
-			MethodName: "GetAvailableResources",
-			Handler:    _PodResourcesLister_GetAvailableResources_Handler,
+			MethodName: "GetAllocatableResources",
+			Handler:    _PodResourcesLister_GetAllocatableResources_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "api.proto",
 }
 
-func (m *AvailableResourcesRequest) Marshal() (dAtA []byte, err error) {
+func (m *AllocatableResourcesRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -673,12 +673,12 @@ func (m *AvailableResourcesRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *AvailableResourcesRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *AllocatableResourcesRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *AvailableResourcesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *AllocatableResourcesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -686,7 +686,7 @@ func (m *AvailableResourcesRequest) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	return len(dAtA) - i, nil
 }
 
-func (m *AvailableResourcesResponse) Marshal() (dAtA []byte, err error) {
+func (m *AllocatableResourcesResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -696,12 +696,12 @@ func (m *AvailableResourcesResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *AvailableResourcesResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *AllocatableResourcesResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *AvailableResourcesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *AllocatableResourcesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1043,7 +1043,7 @@ func encodeVarintApi(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *AvailableResourcesRequest) Size() (n int) {
+func (m *AllocatableResourcesRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1052,7 +1052,7 @@ func (m *AvailableResourcesRequest) Size() (n int) {
 	return n
 }
 
-func (m *AvailableResourcesResponse) Size() (n int) {
+func (m *AllocatableResourcesResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1203,16 +1203,16 @@ func sovApi(x uint64) (n int) {
 func sozApi(x uint64) (n int) {
 	return sovApi(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (this *AvailableResourcesRequest) String() string {
+func (this *AllocatableResourcesRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&AvailableResourcesRequest{`,
+	s := strings.Join([]string{`&AllocatableResourcesRequest{`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *AvailableResourcesResponse) String() string {
+func (this *AllocatableResourcesResponse) String() string {
 	if this == nil {
 		return "nil"
 	}
@@ -1221,7 +1221,7 @@ func (this *AvailableResourcesResponse) String() string {
 		repeatedStringForDevices += strings.Replace(f.String(), "ContainerDevices", "ContainerDevices", 1) + ","
 	}
 	repeatedStringForDevices += "}"
-	s := strings.Join([]string{`&AvailableResourcesResponse{`,
+	s := strings.Join([]string{`&AllocatableResourcesResponse{`,
 		`Devices:` + repeatedStringForDevices + `,`,
 		`CpuIds:` + fmt.Sprintf("%v", this.CpuIds) + `,`,
 		`}`,
@@ -1331,7 +1331,7 @@ func valueToStringApi(v interface{}) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
 }
-func (m *AvailableResourcesRequest) Unmarshal(dAtA []byte) error {
+func (m *AllocatableResourcesRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1354,10 +1354,10 @@ func (m *AvailableResourcesRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: AvailableResourcesRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: AllocatableResourcesRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: AvailableResourcesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: AllocatableResourcesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
@@ -1384,7 +1384,7 @@ func (m *AvailableResourcesRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *AvailableResourcesResponse) Unmarshal(dAtA []byte) error {
+func (m *AllocatableResourcesResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1407,10 +1407,10 @@ func (m *AvailableResourcesResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: AvailableResourcesResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: AllocatableResourcesResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: AvailableResourcesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: AllocatableResourcesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

@@ -90,7 +90,7 @@ func (p *podResourcesServer) List(ctx context.Context, req *podresourcesapi.List
 }
 
 // AvailableResources returns information about all the devices known by the server
-func (p *podResourcesServer) GetAvailableResources(context.Context, *podresourcesapi.AvailableResourcesRequest) (*podresourcesapi.AvailableResourcesResponse, error) {
+func (p *podResourcesServer) GetAllocatableResources(context.Context, *podresourcesapi.AllocatableResourcesRequest) (*podresourcesapi.AllocatableResourcesResponse, error) {
 	allDevices := p.devicesProvider.GetAllDevices()
 	klog.Infof("server.go allDevices: %v", spew.Sdump(allDevices))
 	var respDevs []*podresourcesapi.ContainerDevices
@@ -110,11 +110,11 @@ func (p *podResourcesServer) GetAvailableResources(context.Context, *podresource
 			Topology: &podresourcesapi.TopologyInfo{Nodes: []*podresourcesapi.NUMANode{{ID: numaNode}}},
 		})
 	}
-		klog.Infof("server.go GetAvailableResources respDevs: %v", spew.Sdump(respDevs))
+		klog.Infof("server.go GetAllocatableResources respDevs: %v", spew.Sdump(respDevs))
 
 	}
 
-	return &podresourcesapi.AvailableResourcesResponse{
+	return &podresourcesapi.AllocatableResourcesResponse{
 		Devices: respDevs,
 		CpuIds:  p.cpusProvider.GetAllCPUs(),
 	}, nil
