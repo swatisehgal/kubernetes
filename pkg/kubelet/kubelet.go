@@ -1834,25 +1834,37 @@ func (kl *Kubelet) syncLoopIteration(configCh <-chan kubetypes.PodUpdate, handle
 
 		switch u.Op {
 		case kubetypes.ADD:
-			klog.V(2).Infof("SyncLoop (ADD, %q): %q", u.Source, format.Pods(u.Pods))
+			klog.V(2).Infof("SyncLoop (ADD, %q): %q operation is %v ", u.Source, format.Pods(u.Pods), u.Op)
 			// After restarting, kubelet will get all existing pods through
 			// ADD as if they are new pods. These pods will then go through the
 			// admission process and *may* be rejected. This can be resolved
 			// once we have checkpointing.
 			handler.HandlePodAdditions(u.Pods)
+			// for _, pod := range u.Pods {
+			//  kl.resourcesNotifier.AddPod(pod)
+		 // }
 		case kubetypes.UPDATE:
-			klog.V(2).Infof("SyncLoop (UPDATE, %q): %q", u.Source, format.PodsWithDeletionTimestamps(u.Pods))
+			klog.V(2).Infof("SyncLoop (UPDATE, %q): %q operation is %v", u.Source, format.PodsWithDeletionTimestamps(u.Pods),u.Op)
 			handler.HandlePodUpdates(u.Pods)
+			for _, pod := range u.Pods {
+			kl.resourcesNotifier.UpdatePod(pod)
+			}
 		case kubetypes.REMOVE:
-			klog.V(2).Infof("SyncLoop (REMOVE, %q): %q", u.Source, format.Pods(u.Pods))
+			klog.V(2).Infof("SyncLoop (REMOVE, %q): %q operation is %v ", u.Source, format.Pods(u.Pods),u.Op)
 			handler.HandlePodRemoves(u.Pods)
+		// 		for _, pod := range u.Pods {
+		// 	kl.resourcesNotifier.DeletePod(pod)
+		// }
 		case kubetypes.RECONCILE:
 			klog.V(4).Infof("SyncLoop (RECONCILE, %q): %q", u.Source, format.Pods(u.Pods))
 			handler.HandlePodReconcile(u.Pods)
 		case kubetypes.DELETE:
-			klog.V(2).Infof("SyncLoop (DELETE, %q): %q", u.Source, format.Pods(u.Pods))
+			klog.V(2).Infof("SyncLoop (DELETE, %q): %q operation is %v" , u.Source, format.Pods(u.Pods),u.Op)
 			// DELETE is treated as a UPDATE because of graceful deletion.
 			handler.HandlePodUpdates(u.Pods)
+			// for _, pod := range u.Pods {
+			// 	kl.resourcesNotifier.DeletePod(pod)
+			// }
 		case kubetypes.SET:
 			// TODO: Do we want to support this?
 			klog.Errorf("Kubelet does not support snapshot update")
@@ -1926,6 +1938,7 @@ func (kl *Kubelet) syncLoopIteration(configCh <-chan kubetypes.PodUpdate, handle
 // dispatchWork starts the asynchronous sync of the pod in a pod worker.
 // If the pod has completed termination, dispatchWork will perform no action.
 func (kl *Kubelet) dispatchWork(pod *v1.Pod, syncType kubetypes.SyncPodType, mirrorPod *v1.Pod, start time.Time) {
+	klog.Infof(" kubelet.go dispatchWork called pod %q,", format.Pod(pod))
 	// check whether we are ready to delete the pod from the API server (all status up to date)
 	containersTerminal, podWorkerTerminal := kl.podAndContainersAreTerminal(pod)
 	if pod.DeletionTimestamp != nil && containersTerminal {
@@ -1973,6 +1986,8 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	sort.Sort(sliceutils.PodsByCreationTime(pods))
 	for _, pod := range pods {
+		klog.Infof(" kubelet.go HandlePodAdditions called to add pod %q,", format.Pod(pod))
+
 		existingPods := kl.podManager.GetPods()
 		// Always add the pod to the pod manager. Kubelet relies on the pod
 		// manager as the source of truth for the desired state. If a pod does
@@ -2003,6 +2018,7 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 		mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)
 		kl.dispatchWork(pod, kubetypes.SyncPodCreate, mirrorPod, start)
 		kl.probeManager.AddPod(pod)
+		// kl.resourcesNotifier.AddPod(pod)
 	}
 }
 
@@ -2011,8 +2027,10 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
+		klog.Infof(" kubelet.go HandlePodUpdates called to update pod %q,", format.Pod(pod))
+
 		kl.podManager.UpdatePod(pod)
-		kl.resourcesNotifier.UpdatePod(pod)
+		// kl.resourcesNotifier.UpdatePod(pod)
 		if kubetypes.IsMirrorPod(pod) {
 			kl.handleMirrorPod(pod, start)
 			continue
@@ -2021,6 +2039,7 @@ func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 
 		mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)
 		kl.dispatchWork(pod, kubetypes.SyncPodUpdate, mirrorPod, start)
+		// kl.resourcesNotifier.UpdatePod(pod)
 	}
 }
 
@@ -2029,6 +2048,8 @@ func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 func (kl *Kubelet) HandlePodRemoves(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
+		klog.Infof("kubelet.go HandlePodRemoves called to delete pod %q,", format.Pod(pod))
+
 		kl.podManager.DeletePod(pod)
 		kl.resourcesNotifier.DeletePod(pod)
 		if kubetypes.IsMirrorPod(pod) {
@@ -2044,6 +2065,7 @@ func (kl *Kubelet) HandlePodRemoves(pods []*v1.Pod) {
 			klog.V(2).Infof("Failed to delete pod %q, err: %v", format.Pod(pod), err)
 		}
 		kl.probeManager.RemovePod(pod)
+		// kl.resourcesNotifier.DeletePod(pod)
 	}
 }
 
@@ -2055,7 +2077,7 @@ func (kl *Kubelet) HandlePodReconcile(pods []*v1.Pod) {
 		// Update the pod in pod manager, status manager will do periodically reconcile according
 		// to the pod manager.
 		kl.podManager.UpdatePod(pod)
-		kl.resourcesNotifier.UpdatePod(pod)
+		// kl.resourcesNotifier.UpdatePod(pod)
 
 		// Reconcile Pod "Ready" condition if necessary. Trigger sync pod for reconciliation.
 		if status.NeedToReconcilePodReadiness(pod) {
