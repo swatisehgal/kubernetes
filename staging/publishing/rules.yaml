@@ -1372,3 +1372,11 @@ rules:
       branch: master
       dir: staging/src/k8s.io/mount-utils
     name: master
+
+- destination: noderesourcetopology-api
+  library: true
+  branches:
+  - source:
+      branch: master
+      dir: staging/src/k8s.io/noderesourcetopology-api
+    name: master
