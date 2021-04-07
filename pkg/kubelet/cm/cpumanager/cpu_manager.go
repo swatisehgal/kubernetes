@@ -180,6 +180,37 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 			return nil, fmt.Errorf("new static policy error: %v", err)
 		}
 
+	case PolicySMTAwareRequire:
+		var err error
+		topo, err = topology.Discover(machineInfo)
+		if err != nil {
+			return nil, err
+		}
+		klog.InfoS("Detected CPU topology", "topology", topo)
+
+		reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
+		if !ok {
+			// The SMT-aware-require policy cannot initialize without this information.
+			return nil, fmt.Errorf("[cpumanager] unable to determine reserved CPU resources for SMT-aware-require policy")
+		}
+		if reservedCPUs.IsZero() {
+			// The SMT-aware-require policy requires this to be nonzero. Zero CPU reservation
+			// would allow the shared pool to be completely exhausted. At that point
+			// either we would violate our guarantee of exclusivity or need to evict
+			// any pod that has at least one container that requires zero CPUs.
+			// See the comments in policy_smtaware_requre.go for more details.
+			return nil, fmt.Errorf("[cpumanager] the SMT-aware-require policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero")
+		}
+
+		// Take the ceiling of the reservation, since fractional CPUs cannot be
+		// exclusively allocated.
+		reservedCPUsFloat := float64(reservedCPUs.MilliValue()) / 1000
+		numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
+		policy, err = NewSMTAwareRequirePolicy(topo, numReservedCPUs, specificCPUs, affinity)
+		if err != nil {
+			return nil, fmt.Errorf("new SMT-aware-require policy error: %v", err)
+		}
+
 	default:
 		return nil, fmt.Errorf("unknown policy: \"%s\"", cpuPolicyName)
 	}
