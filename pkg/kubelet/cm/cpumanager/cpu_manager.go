@@ -150,6 +150,7 @@ func (s *sourcesReadyStub) AllReady() bool          { return true }
 func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo *cadvisorapi.MachineInfo, specificCPUs cpuset.CPUSet, nodeAllocatableReservation v1.ResourceList, stateFileDirectory string, affinity topologymanager.Store) (Manager, error) {
 	var topo *topology.CPUTopology
 	var policy Policy
+	var admitHandler lifecycle.PodAdmitHandler
 
 	switch policyName(cpuPolicyName) {
 
@@ -187,6 +188,44 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 			return nil, fmt.Errorf("new static policy error: %v", err)
 		}
 
+	case PolicySMTAware:
+		// WARNING: this block intentionally duplicates the "PolicyStatic" right above, even if much of this code could be
+		// trivially factored out. This is done to minimize the diff and to make automated rebases easier.
+		var err error
+		topo, err = topology.Discover(machineInfo)
+		if err != nil {
+			return nil, err
+		}
+		klog.InfoS("Detected CPU topology", "topology", topo)
+
+		reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
+		if !ok {
+			// The static policy cannot initialize without this information.
+			return nil, fmt.Errorf("[cpumanager] unable to determine reserved CPU resources for smtaware policy")
+		}
+		if reservedCPUs.IsZero() {
+			// The static policy requires this to be nonzero. Zero CPU reservation
+			// would allow the shared pool to be completely exhausted. At that point
+			// either we would violate our guarantee of exclusivity or need to evict
+			// any pod that has at least one container that requires zero CPUs.
+			// See the comments in policy_static.go for more details.
+			return nil, fmt.Errorf("[cpumanager] the static policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero")
+		}
+
+		// Take the ceiling of the reservation, since fractional CPUs cannot be
+		// exclusively allocated.
+		reservedCPUsFloat := float64(reservedCPUs.MilliValue()) / 1000
+		numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
+		policy, err = NewSMTAwarePolicy(topo, numReservedCPUs, specificCPUs, affinity)
+		if err != nil {
+			return nil, fmt.Errorf("new smtaware policy error: %v", err)
+		}
+		handler, ok := policy.(lifecycle.PodAdmitHandler)
+		if !ok {
+			return nil, fmt.Errorf("smtaware policy is not a PodAdmitHandler")
+		}
+		admitHandler = handler
+
 	default:
 		return nil, fmt.Errorf("unknown policy: \"%s\"", cpuPolicyName)
 	}
@@ -199,6 +238,7 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 		stateFileDirectory:         stateFileDirectory,
 	}
 	manager.sourcesReady = &sourcesReadyStub{}
+	manager.admitHandler = admitHandler
 	return manager, nil
 }
 
