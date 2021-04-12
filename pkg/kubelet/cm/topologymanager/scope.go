@@ -18,10 +18,11 @@ package topologymanager
 
 import (
 	"fmt"
+	"strings"
 
 	"sync"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
@@ -125,7 +126,12 @@ func (s *scope) admitPolicyNone(pod *v1.Pod) lifecycle.PodAdmitResult {
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 		err := s.allocateAlignedResources(pod, &container)
 		if err != nil {
-			return unexpectedAdmissionError(err)
+			reason := "UnexpectedAdmissionError"
+			if strings.Contains(err.Error(), "SMTAlignmentError") {
+				reason = "SMTAlignmentError"
+				klog.InfoS("SMTAwareRequire container manager linux Matching,", "reason", reason)
+			}
+			return unexpectedAdmissionError(err, reason)
 		}
 	}
 	return admitPod()
@@ -151,10 +157,10 @@ func topologyAffinityError() lifecycle.PodAdmitResult {
 	}
 }
 
-func unexpectedAdmissionError(err error) lifecycle.PodAdmitResult {
+func unexpectedAdmissionError(err error, reason string) lifecycle.PodAdmitResult {
 	return lifecycle.PodAdmitResult{
 		Message: fmt.Sprintf("Allocate failed due to %v, which is unexpected", err),
-		Reason:  "UnexpectedAdmissionError",
+		Reason:  reason,
 		Admit:   false,
 	}
 }

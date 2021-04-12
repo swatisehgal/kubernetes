@@ -17,7 +17,9 @@ limitations under the License.
 package topologymanager
 
 import (
-	"k8s.io/api/core/v1"
+	"strings"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
@@ -58,8 +60,14 @@ func (s *podScope) Admit(pod *v1.Pod) lifecycle.PodAdmitResult {
 		s.setTopologyHints(string(pod.UID), container.Name, bestHint)
 
 		err := s.allocateAlignedResources(pod, &container)
+
 		if err != nil {
-			return unexpectedAdmissionError(err)
+			reason := "UnexpectedAdmissionError"
+			if strings.Contains(err.Error(), "SMTAlignmentError") {
+				reason = "SMTAlignmentError"
+				klog.InfoS("SMTAwareRequire container manager linux Matching,", "reason", reason)
+			}
+			return unexpectedAdmissionError(err, reason)
 		}
 	}
 	return admitPod()

@@ -749,6 +749,7 @@ type resourceAllocator struct {
 
 func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
 	pod := attrs.Pod
+	klog.InfoS("SMTAwareRequire inside resourceAllocator Admit")
 
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 		err := m.deviceManager.Allocate(pod, &container)
@@ -762,10 +763,18 @@ func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle
 
 		if m.cpuManager != nil {
 			err = m.cpuManager.Allocate(pod, &container)
+			//TODO: Check if feature gate enabled here as well
+			reason := "UnexpectedAdmissionError"
+			if strings.Contains(err.Error(), "SMTAlignmentError") {
+				reason = "SMTAlignmentError"
+				klog.InfoS("SMTAwareRequire container manager linux Matching,", "reason", reason)
+			}
+			klog.InfoS("SMTAwareRequire container manager linux,", "reason", reason)
+
 			if err != nil {
 				return lifecycle.PodAdmitResult{
 					Message: fmt.Sprintf("Allocate failed due to %v, which is unexpected", err),
-					Reason:  "UnexpectedAdmissionError",
+					Reason:  reason,
 					Admit:   false,
 				}
 			}
@@ -784,6 +793,22 @@ func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle
 	}
 
 	return lifecycle.PodAdmitResult{Admit: true}
+}
+
+type SMTAlignmentError struct {
+	requestedCPUs int
+	cpusPerCore   int
+}
+
+func (e *SMTAlignmentError) Error() string {
+	errorMessage := fmt.Sprintf("%s: Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", SMTAlignmentErrorString, e.requestedCPUs, e.cpusPerCore)
+	return errorMessage
+}
+func NewSMTAlignmentError(requestedCPUCount, cpusPerCoreCount int) error {
+	return &SMTAlignmentError{
+		requestedCPUs: requestedCPUCount,
+		cpusPerCore:   cpusPerCoreCount,
+	}
 }
 
 func (cm *containerManagerImpl) SystemCgroupsLimit() v1.ResourceList {

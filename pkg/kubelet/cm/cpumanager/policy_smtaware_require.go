@@ -88,6 +88,7 @@ var _ Policy = &smtAwareRequirePolicy{}
 // assignments for exclusively pinned guaranteed containers after the main
 // container process starts.
 func NewSMTAwareRequirePolicy(topology *topology.CPUTopology, numReservedCPUs int, reservedCPUs cpuset.CPUSet, affinity topologymanager.Store) (Policy, error) {
+	klog.InfoS("SMTAwareRequire NewSMTAwareRequirePolicy")
 	allCPUs := topology.CPUDetails.CPUs()
 	var reserved cpuset.CPUSet
 	if reservedCPUs.Size() > 0 {
@@ -98,6 +99,7 @@ func NewSMTAwareRequirePolicy(topology *topology.CPUTopology, numReservedCPUs in
 		//
 		// For example: Given a system with 8 CPUs available and HT enabled,
 		// if numReservedCPUs=2, then reserved={0,4}
+		klog.InfoS("SMTAwareRequire calling takeByTopology")
 		reserved, _ = takeByTopology(topology, allCPUs, numReservedCPUs)
 	}
 
@@ -106,7 +108,7 @@ func NewSMTAwareRequirePolicy(topology *topology.CPUTopology, numReservedCPUs in
 		return nil, err
 	}
 
-	klog.InfoS("Reserved CPUs not available for exclusive assignment", "reservedSize", reserved.Size(), "reserved", reserved)
+	klog.InfoS("SMTAwareRequire Reserved CPUs not available for exclusive assignment", "reservedSize", reserved.Size(), "reserved", reserved)
 
 	return &smtAwareRequirePolicy{
 		topology:    topology,
@@ -121,8 +123,9 @@ func (p *smtAwareRequirePolicy) Name() string {
 }
 
 func (p *smtAwareRequirePolicy) Start(s state.State) error {
+	klog.InfoS("SMTAwareRequire inside Start")
 	if err := p.validateState(s); err != nil {
-		klog.ErrorS(err, "Static policy invalid state, please drain node and remove policy state file")
+		klog.ErrorS(err, "SMTAwareRequire policy invalid state, please drain node and remove policy state file")
 		return err
 	}
 	return nil
@@ -135,7 +138,7 @@ func (p *smtAwareRequirePolicy) validateState(s state.State) error {
 	// Default cpuset cannot be empty when assignments exist
 	if tmpDefaultCPUset.IsEmpty() {
 		if len(tmpAssignments) != 0 {
-			return fmt.Errorf("default cpuset cannot be empty")
+			return fmt.Errorf("SMTAwareRequire default cpuset cannot be empty")
 		}
 		// state is empty initialize
 		allCPUs := p.topology.CPUDetails.CPUs()
@@ -148,16 +151,16 @@ func (p *smtAwareRequirePolicy) validateState(s state.State) error {
 	// - kube/system reserved have changed (increased) - may lead to some containers not being able to start
 	// - user tampered with file
 	if !p.reserved.Intersection(tmpDefaultCPUset).Equals(p.reserved) {
-		return fmt.Errorf("not all reserved cpus: \"%s\" are present in defaultCpuSet: \"%s\"",
+		return fmt.Errorf("SMTAwareRequire not all reserved cpus: \"%s\" are present in defaultCpuSet: \"%s\"",
 			p.reserved.String(), tmpDefaultCPUset.String())
 	}
 
-	// 2. Check if state for static policy is consistent
+	// 2. Check if state for smt-aware-require policy is consistent
 	for pod := range tmpAssignments {
 		for container, cset := range tmpAssignments[pod] {
 			// None of the cpu in DEFAULT cset should be in s.assignments
 			if !tmpDefaultCPUset.Intersection(cset).IsEmpty() {
-				return fmt.Errorf("pod: %s, container: %s cpuset: \"%s\" overlaps with default cpuset \"%s\"",
+				return fmt.Errorf("SMTAwareRequire pod: %s, container: %s cpuset: \"%s\" overlaps with default cpuset \"%s\"",
 					pod, container, cset.String(), tmpDefaultCPUset.String())
 			}
 		}
@@ -179,7 +182,7 @@ func (p *smtAwareRequirePolicy) validateState(s state.State) error {
 	}
 	totalKnownCPUs = totalKnownCPUs.UnionAll(tmpCPUSets)
 	if !totalKnownCPUs.Equals(p.topology.CPUDetails.CPUs()) {
-		return fmt.Errorf("current set of available CPUs \"%s\" doesn't match with CPUs in state \"%s\"",
+		return fmt.Errorf("SMTAwareRequire current set of available CPUs \"%s\" doesn't match with CPUs in state \"%s\"",
 			p.topology.CPUDetails.CPUs().String(), totalKnownCPUs.String())
 	}
 
@@ -188,10 +191,12 @@ func (p *smtAwareRequirePolicy) validateState(s state.State) error {
 
 // GetAllocatableCPUs returns the set of unassigned CPUs minus the reserved set.
 func (p *smtAwareRequirePolicy) GetAllocatableCPUs(s state.State) cpuset.CPUSet {
+	klog.InfoS("SMTAwareRequire inside GetAllocatableCPUs")
 	return s.GetDefaultCPUSet().Difference(p.reserved)
 }
 
 func (p *smtAwareRequirePolicy) updateCPUsToReuse(pod *v1.Pod, container *v1.Container, cset cpuset.CPUSet) {
+	klog.InfoS("SMTAwareRequire inside updateCPUsToReuse")
 	// If pod entries to m.cpusToReuse other than the current pod exist, delete them.
 	for podUID := range p.cpusToReuse {
 		if podUID != string(pod.UID) {
@@ -216,24 +221,31 @@ func (p *smtAwareRequirePolicy) updateCPUsToReuse(pod *v1.Pod, container *v1.Con
 }
 
 func (p *smtAwareRequirePolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Container) error {
+	klog.InfoS("SMTAwareRequire inside Allocate")
 	if numCPUs := p.guaranteedCPUs(pod, container); numCPUs != 0 {
-		klog.InfoS("Static policy: Allocate", "pod", klog.KObj(pod), "containerName", container.Name)
+		klog.InfoS("SMTAwareRequire policy: Allocate", "pod", klog.KObj(pod), "containerName", container.Name)
 		// container belongs in an exclusively allocated pool
+
+		//TODO: Also check if feature gate is enabled
+		if numCPUs%p.topology.CPUsPerCore() != 0 {
+			klog.InfoS("SMTAwareRequired: odd number of CPUs requested on an SMT enabled system ")
+			return fmt.Errorf("SMTAlignmentError: Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", numCPUs, p.topology.CPUsPerCore())
+		}
 
 		if cpuset, ok := s.GetCPUSet(string(pod.UID), container.Name); ok {
 			p.updateCPUsToReuse(pod, container, cpuset)
-			klog.InfoS("Static policy: container already present in state, skipping", "pod", klog.KObj(pod), "containerName", container.Name)
+			klog.InfoS("SMTAwareRequire policy: container already present in state, skipping", "pod", klog.KObj(pod), "containerName", container.Name)
 			return nil
 		}
 
 		// Call Topology Manager to get the aligned socket affinity across all hint providers.
 		hint := p.affinity.GetAffinity(string(pod.UID), container.Name)
-		klog.InfoS("Topology Affinity", "pod", klog.KObj(pod), "containerName", container.Name, "affinity", hint)
+		klog.InfoS("SMTAwareRequire Topology Affinity", "pod", klog.KObj(pod), "containerName", container.Name, "affinity", hint)
 
 		// Allocate CPUs according to the NUMA affinity contained in the hint.
 		cpuset, err := p.allocateCPUs(s, numCPUs, hint.NUMANodeAffinity, p.cpusToReuse[string(pod.UID)])
 		if err != nil {
-			klog.ErrorS(err, "Unable to allocate CPUs", "pod", klog.KObj(pod), "containerName", container.Name, "numCPUs", numCPUs)
+			klog.ErrorS(err, "SMTAwareRequire Unable to allocate CPUs", "pod", klog.KObj(pod), "containerName", container.Name, "numCPUs", numCPUs)
 			return err
 		}
 		s.SetCPUSet(string(pod.UID), container.Name, cpuset)
@@ -245,7 +257,7 @@ func (p *smtAwareRequirePolicy) Allocate(s state.State, pod *v1.Pod, container *
 }
 
 func (p *smtAwareRequirePolicy) RemoveContainer(s state.State, podUID string, containerName string) error {
-	klog.InfoS("Static policy: RemoveContainer", "podUID", podUID, "containerName", containerName)
+	klog.InfoS("SMTAwareRequire policy: RemoveContainer", "podUID", podUID, "containerName", containerName)
 	if toRelease, ok := s.GetCPUSet(podUID, containerName); ok {
 		s.Delete(podUID, containerName)
 		// Mutate the shared pool, adding released cpus.
@@ -258,7 +270,6 @@ func (p *smtAwareRequirePolicy) allocateCPUs(s state.State, numCPUs int, numaAff
 	klog.InfoS("AllocateCPUs", "numCPUs", numCPUs, "socket", numaAffinity)
 
 	allocatableCPUs := p.GetAllocatableCPUs(s).Union(reusableCPUs)
-
 	// If there are aligned CPUs in numaAffinity, attempt to take those first.
 	result := cpuset.NewCPUSet()
 	if numaAffinity != nil {
@@ -271,30 +282,34 @@ func (p *smtAwareRequirePolicy) allocateCPUs(s state.State, numCPUs int, numaAff
 		if numCPUs < numAlignedToAlloc {
 			numAlignedToAlloc = numCPUs
 		}
-
+		klog.InfoS("SMTAwareRequire calling takeByTopology to get alignedCPUs")
 		alignedCPUs, err := takeByTopology(p.topology, alignedCPUs, numAlignedToAlloc)
 		if err != nil {
 			return cpuset.NewCPUSet(), err
 		}
+		klog.InfoS("SMTAwareRequire after calling takeByTopology,", "alignedCPUs", alignedCPUs)
 
 		result = result.Union(alignedCPUs)
 	}
-
+	klog.InfoS("SMTAwareRequire calling takeByTopology to get remainingCPUs")
 	// Get any remaining CPUs from what's leftover after attempting to grab aligned ones.
 	remainingCPUs, err := takeByTopology(p.topology, allocatableCPUs.Difference(result), numCPUs-result.Size())
 	if err != nil {
 		return cpuset.NewCPUSet(), err
 	}
+	klog.InfoS("SMTAwareRequire after calling takeByTopology,", "remainingCPUs", remainingCPUs)
+
 	result = result.Union(remainingCPUs)
 
 	// Remove allocated CPUs from the shared CPUSet.
 	s.SetDefaultCPUSet(s.GetDefaultCPUSet().Difference(result))
 
-	klog.InfoS("AllocateCPUs", "result", result)
+	klog.InfoS("SMTAwareRequire AllocateCPUs", "result", result)
 	return result, nil
 }
 
 func (p *smtAwareRequirePolicy) guaranteedCPUs(pod *v1.Pod, container *v1.Container) int {
+	klog.InfoS("SMTAwareRequire inside guaranteedCPUs")
 	if v1qos.GetPodQOS(pod) != v1.PodQOSGuaranteed {
 		return 0
 	}
@@ -305,10 +320,12 @@ func (p *smtAwareRequirePolicy) guaranteedCPUs(pod *v1.Pod, container *v1.Contai
 	// Safe downcast to do for all systems with < 2.1 billion CPUs.
 	// Per the language spec, `int` is guaranteed to be at least 32 bits wide.
 	// https://golang.org/ref/spec#Numeric_types
+	klog.InfoS("SMTAwareRequire returning from guaranteedCPUs", "cpuQuantity", int(cpuQuantity.Value()))
 	return int(cpuQuantity.Value())
 }
 
 func (p *smtAwareRequirePolicy) podGuaranteedCPUs(pod *v1.Pod) int {
+	klog.InfoS("SMTAwareRequire inside podGuaranteedCPUs")
 	// The maximum of requested CPUs by init containers.
 	requestedByInitContainers := 0
 	for _, container := range pod.Spec.InitContainers {
@@ -336,6 +353,8 @@ func (p *smtAwareRequirePolicy) podGuaranteedCPUs(pod *v1.Pod) int {
 }
 
 func (p *smtAwareRequirePolicy) GetTopologyHints(s state.State, pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+	klog.InfoS("SMTAwareRequire inside GetTopologyHints")
+
 	// Get a count of how many guaranteed CPUs have been requested.
 	requested := p.guaranteedCPUs(pod, container)
 
@@ -383,6 +402,7 @@ func (p *smtAwareRequirePolicy) GetTopologyHints(s state.State, pod *v1.Pod, con
 }
 
 func (p *smtAwareRequirePolicy) GetPodTopologyHints(s state.State, pod *v1.Pod) map[string][]topologymanager.TopologyHint {
+	klog.InfoS("SMTAwareRequire inside GetPodTopologyHints")
 	// Get a count of how many guaranteed CPUs have been requested by Pod.
 	requested := p.podGuaranteedCPUs(pod)
 
@@ -447,6 +467,7 @@ func (p *smtAwareRequirePolicy) GetPodTopologyHints(s state.State, pod *v1.Pod) 
 // bits set as the narrowest matching NUMANodeAffinity with 'Preferred: true', and
 // marking all others with 'Preferred: false'.
 func (p *smtAwareRequirePolicy) generateCPUTopologyHints(availableCPUs cpuset.CPUSet, reusableCPUs cpuset.CPUSet, request int) []topologymanager.TopologyHint {
+	klog.InfoS("SMTAwareRequire inside generateCPUTopologyHints")
 	// Initialize minAffinitySize to include all NUMA Nodes.
 	minAffinitySize := p.topology.CPUDetails.NUMANodes().Size()
 

@@ -147,6 +147,7 @@ func (a *cpuAccumulator) isFailed() bool {
 }
 
 func takeByTopology(topo *topology.CPUTopology, availableCPUs cpuset.CPUSet, numCPUs int) (cpuset.CPUSet, error) {
+	klog.InfoS("SMTAwareRequire inside takeByTopology")
 	acc := newCPUAccumulator(topo, availableCPUs, numCPUs)
 	if acc.isSatisfied() {
 		return acc.result, nil
@@ -160,7 +161,7 @@ func takeByTopology(topo *topology.CPUTopology, availableCPUs cpuset.CPUSet, num
 	//    least a socket's-worth of CPUs.
 	if acc.needs(acc.topo.CPUsPerSocket()) {
 		for _, s := range acc.freeSockets() {
-			klog.V(4).InfoS("takeByTopology: claiming socket", "socket", s)
+			klog.InfoS("SMTAwareRequire takeByTopology: claiming socket", "socket", s)
 			acc.take(acc.details.CPUsInSockets(s))
 			if acc.isSatisfied() {
 				return acc.result, nil
@@ -171,11 +172,23 @@ func takeByTopology(topo *topology.CPUTopology, availableCPUs cpuset.CPUSet, num
 		}
 	}
 
+	if numCPUs%2 == 0 && acc.topo.CPUsPerCore() == 1 {
+		klog.InfoS("SMTAwareRequiretakeByTopology: claiming even number of cores where hyperthreading is disabled", "core", numCPUs)
+	}
+	//if even number of CPUs are requested on a system where hyperthreading is enabled
+	if numCPUs%acc.topo.CPUsPerCore() != 0 {
+		klog.InfoS("SMTAwareRequire takeByTopology: claiming even number of cores on a system where hyperthreading is enabled ", "core", numCPUs)
+
+		return cpuset.NewCPUSet(), fmt.Errorf("SMT Allignment Error")
+	}
+
+	klog.InfoS("SMTAwareRequire takeByTopology: claiming core ", "core", numCPUs)
+
 	// 2. Acquire whole cores, if available and the container requires at least
 	//    a core's-worth of CPUs.
 	if acc.needs(acc.topo.CPUsPerCore()) {
 		for _, c := range acc.freeCores() {
-			klog.V(4).InfoS("takeByTopology: claiming core", "core", c)
+			klog.InfoS("SMTAwareRequire takeByTopology: claiming core", "core", c)
 			acc.take(acc.details.CPUsInCores(c))
 			if acc.isSatisfied() {
 				return acc.result, nil
@@ -190,7 +203,7 @@ func takeByTopology(topo *topology.CPUTopology, availableCPUs cpuset.CPUSet, num
 	//    on the same sockets as the whole cores we have already taken in this
 	//    allocation.
 	for _, c := range acc.freeCPUs() {
-		klog.V(4).InfoS("takeByTopology: claiming CPU", "cpu", c)
+		klog.InfoS("SMTAwareRequire takeByTopology: claiming CPU", "cpu", c)
 		if acc.needs(1) {
 			acc.take(cpuset.NewCPUSet(c))
 		}

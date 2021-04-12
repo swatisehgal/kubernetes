@@ -1,0 +1,10 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+- |
+  kind: KubeletConfiguration
+  cpuManagerPolicy: "smtaware-require"
+  reservedSystemCPUs: "0,4"
+nodes:
+- role: control-plane
+  image: quay.io/swsehgal/smtaware-kind-node:latest
