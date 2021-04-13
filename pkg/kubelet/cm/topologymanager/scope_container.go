@@ -62,7 +62,7 @@ func (s *containerScope) Admit(pod *v1.Pod) lifecycle.PodAdmitResult {
 		err := s.allocateAlignedResources(pod, &container)
 		//TODO: Check if feature gate enabled here as well
 		reason := "UnexpectedAdmissionError"
-		if strings.Contains(err.Error(), "SMTAlignmentError") {
+		if _, ok := err.(*SMTAlignmentError); ok {
 			reason = "SMTAlignmentError"
 			klog.InfoS("SMTAwareRequire container manager linux Matching,", "reason", reason)
 		}

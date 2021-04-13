@@ -229,7 +229,8 @@ func (p *smtAwareRequirePolicy) Allocate(s state.State, pod *v1.Pod, container *
 		//TODO: Also check if feature gate is enabled
 		if numCPUs%p.topology.CPUsPerCore() != 0 {
 			klog.InfoS("SMTAwareRequired: odd number of CPUs requested on an SMT enabled system ")
-			return fmt.Errorf("SMTAlignmentError: Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", numCPUs, p.topology.CPUsPerCore())
+			// return fmt.Errorf("SMTAlignmentError: Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", numCPUs, p.topology.CPUsPerCore())
+			return topologymanager.NewSMTAlignmentError(numCPUs, p.topology.CPUsPerCore())
 		}
 
 		if cpuset, ok := s.GetCPUSet(string(pod.UID), container.Name); ok {

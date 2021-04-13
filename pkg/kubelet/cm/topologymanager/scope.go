@@ -18,7 +18,6 @@ package topologymanager
 
 import (
 	"fmt"
-	"strings"
 
 	"sync"
 
@@ -127,7 +126,7 @@ func (s *scope) admitPolicyNone(pod *v1.Pod) lifecycle.PodAdmitResult {
 		err := s.allocateAlignedResources(pod, &container)
 		if err != nil {
 			reason := "UnexpectedAdmissionError"
-			if strings.Contains(err.Error(), "SMTAlignmentError") {
+			if _, ok := err.(*SMTAlignmentError); ok {
 				reason = "SMTAlignmentError"
 				klog.InfoS("SMTAwareRequire container manager linux Matching,", "reason", reason)
 			}
@@ -167,4 +166,20 @@ func unexpectedAdmissionError(err error, reason string) lifecycle.PodAdmitResult
 
 func admitPod() lifecycle.PodAdmitResult {
 	return lifecycle.PodAdmitResult{Admit: true}
+}
+
+type SMTAlignmentError struct {
+	requestedCPUs int
+	cpusPerCore   int
+}
+
+func (e *SMTAlignmentError) Error() string {
+	errorMessage := fmt.Sprintf("SMTAlignmentError: Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", e.requestedCPUs, e.cpusPerCore)
+	return errorMessage
+}
+func NewSMTAlignmentError(requestedCPUCount, cpusPerCoreCount int) error {
+	return &SMTAlignmentError{
+		requestedCPUs: requestedCPUCount,
+		cpusPerCore:   cpusPerCoreCount,
+	}
 }
