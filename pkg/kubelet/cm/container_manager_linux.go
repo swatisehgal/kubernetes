@@ -730,7 +730,7 @@ func (cm *containerManagerImpl) UpdatePluginResources(node *schedulerframework.N
 
 func (cm *containerManagerImpl) GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler {
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.TopologyManager) {
-		return cm.topologyManager
+		return &resourceAdmitHandlers{cm.cpuManager, cm.topologyManager}
 	}
 	// TODO: we need to think about a better way to do this. This will work for
 	// now so long as we have only the cpuManager and deviceManager relying on
@@ -749,6 +749,12 @@ type resourceAllocator struct {
 
 func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
 	pod := attrs.Pod
+
+	if m.cpuManager != nil {
+		if res := m.cpuManager.Admit(attrs); !res.Admit {
+			return res
+		}
+	}
 
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 		err := m.deviceManager.Allocate(pod, &container)
@@ -1091,4 +1097,19 @@ func (cm *containerManagerImpl) ShouldResetExtendedResourceCapacity() bool {
 
 func (cm *containerManagerImpl) UpdateAllocatedDevices() {
 	cm.deviceManager.UpdateAllocatedDevices()
+}
+
+// resourceAdmitHandlers allow us to evaluate if a pod can be admitted by both CPUManager and TopologyManager
+type resourceAdmitHandlers struct {
+	cpuManager      cpumanager.Manager
+	topologyManager topologymanager.Manager
+}
+
+func (r *resourceAdmitHandlers) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
+	if r.cpuManager != nil {
+		if res := r.cpuManager.Admit(attrs); !res.Admit {
+			return res
+		}
+	}
+	return r.topologyManager.Admit(attrs)
 }

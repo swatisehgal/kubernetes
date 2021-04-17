@@ -35,6 +35,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/status"
 )
 
@@ -88,6 +89,9 @@ type Manager interface {
 
 	// GetAllocatableCPUs returns the assignable (not allocated) CPUs
 	GetAllocatableCPUs() cpuset.CPUSet
+
+	// PodAdmitHandler is implemented by Manager
+	lifecycle.PodAdmitHandler
 }
 
 type manager struct {
@@ -151,33 +155,26 @@ func NewManager(cpuPolicyName string, reconcilePeriod time.Duration, machineInfo
 
 	case PolicyStatic:
 		var err error
-		topo, err = topology.Discover(machineInfo)
+		var numReservedCPUs int
+		topo, numReservedCPUs, err = getDataForPolicy(machineInfo, nodeAllocatableReservation)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("new smtaware policy error: %v", err)
 		}
-		klog.InfoS("Detected CPU topology", "topology", topo)
-
-		reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
-		if !ok {
-			// The static policy cannot initialize without this information.
-			return nil, fmt.Errorf("[cpumanager] unable to determine reserved CPU resources for static policy")
-		}
-		if reservedCPUs.IsZero() {
-			// The static policy requires this to be nonzero. Zero CPU reservation
-			// would allow the shared pool to be completely exhausted. At that point
-			// either we would violate our guarantee of exclusivity or need to evict
-			// any pod that has at least one container that requires zero CPUs.
-			// See the comments in policy_static.go for more details.
-			return nil, fmt.Errorf("[cpumanager] the static policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero")
-		}
-
-		// Take the ceiling of the reservation, since fractional CPUs cannot be
-		// exclusively allocated.
-		reservedCPUsFloat := float64(reservedCPUs.MilliValue()) / 1000
-		numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
 		policy, err = NewStaticPolicy(topo, numReservedCPUs, specificCPUs, affinity)
 		if err != nil {
 			return nil, fmt.Errorf("new static policy error: %v", err)
+		}
+
+	case PolicySMTAware:
+		var err error
+		var numReservedCPUs int
+		topo, numReservedCPUs, err = getDataForPolicy(machineInfo, nodeAllocatableReservation)
+		if err != nil {
+			return nil, fmt.Errorf("new smtaware policy error: %v", err)
+		}
+		policy, err = NewSMTAwarePolicy(topo, numReservedCPUs, specificCPUs, affinity)
+		if err != nil {
+			return nil, fmt.Errorf("new smtaware policy error: %v", err)
 		}
 
 	default:
@@ -476,4 +473,53 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 
 func (m *manager) GetCPUs(podUID, containerName string) cpuset.CPUSet {
 	return m.state.GetCPUSetOrDefault(podUID, containerName)
+}
+
+func (m *manager) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
+	klog.InfoS("CPUManager Admit Handler")
+	pod := attrs.Pod
+	return m.policy.Admit(pod)
+}
+
+func smtAlignmentError(requestedCPUs, cpusPerCore int) lifecycle.PodAdmitResult {
+	errorMessage := fmt.Sprintf("Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", cpusPerCore, requestedCPUs)
+	return lifecycle.PodAdmitResult{
+		Message: errorMessage,
+		Reason:  "SMTAlignmentError",
+		Admit:   false,
+	}
+}
+
+func admitPod() lifecycle.PodAdmitResult {
+	return lifecycle.PodAdmitResult{
+		Admit: true,
+	}
+}
+
+func getDataForPolicy(machineInfo *cadvisorapi.MachineInfo, nodeAllocatableReservation v1.ResourceList) (*topology.CPUTopology, int, error) {
+	topo, err := topology.Discover(machineInfo)
+	if err != nil {
+		return nil, 0, err
+	}
+	klog.InfoS("Detected CPU topology", "topology", topo)
+
+	reservedCPUs, ok := nodeAllocatableReservation[v1.ResourceCPU]
+	if !ok {
+		// The smtaware policy cannot initialize without this information.
+		return nil, 0, fmt.Errorf("[cpumanager] unable to determine reserved CPU resources for smtaware policy")
+	}
+	if reservedCPUs.IsZero() {
+		// Just like static policy, smtaware policy requires this to be nonzero.
+		// Zero CPU reservation would allow the shared pool to be completely exhausted.
+		// At that point either we would violate our guarantee of exclusivity or need
+		// to evict any pod that has at least one container that requires zero CPUs.
+		return nil, 0, fmt.Errorf("[cpumanager] the smtaware policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero")
+	}
+
+	// Take the ceiling of the reservation, since fractional CPUs cannot be
+	// exclusively allocated.
+	reservedCPUsFloat := float64(reservedCPUs.MilliValue()) / 1000
+	numReservedCPUs := int(math.Ceil(reservedCPUsFloat))
+
+	return topo, numReservedCPUs, nil
 }
