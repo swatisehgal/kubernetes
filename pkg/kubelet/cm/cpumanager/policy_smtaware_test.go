@@ -188,6 +188,11 @@ func TestSMTAwarePolicyAdd(t *testing.T) {
 	largeTopoSock1CPUSet := largeTopoSock1Builder.Result()
 
 	testCases := []staticPolicyTest{
+		// NOTE: Allocation of partial cores never happens as the admission check ensures
+		// that CPUs are always allocated in terms of physical cores. Pods where CPUs requested are not
+		//a multiple of virtual cores per physical core are rejected with SMTAlignmentError.
+		// So in the test cases below there would be not scenarios corresponding to allocation of CPUs
+		// such that partial cores are allocated as such pods would never even reach the allocation phase.
 		{
 			description:     "GuPodSingleCore, SingleSocketHT, ExpectError",
 			topo:            topoSingleSocketHT,
@@ -196,17 +201,6 @@ func TestSMTAwarePolicyAdd(t *testing.T) {
 			stDefaultCPUSet: cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			pod:             makePod("fakePod", "fakeContainer2", "8000m", "8000m"),
 			expErr:          fmt.Errorf("not enough cpus available to satisfy request"),
-			expCPUAlloc:     false,
-			expCSet:         cpuset.NewCPUSet(),
-		},
-		{
-			description:     "GuPodSingleCore, SingleSocketHT, ExpectAllocOneCPU",
-			topo:            topoSingleSocketHT,
-			numReservedCPUs: 1,
-			stAssignments:   state.ContainerCPUAssignments{},
-			stDefaultCPUSet: cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
-			pod:             makePod("fakePod", "fakeContainer2", "1000m", "1000m"),
-			expErr:          fmt.Errorf("failed to allocate cpus"),
 			expCPUAlloc:     false,
 			expCSet:         cpuset.NewCPUSet(),
 		},
@@ -418,22 +412,6 @@ func TestSMTAwarePolicyAdd(t *testing.T) {
 			expErr:      nil,
 			expCPUAlloc: true,
 			expCSet:     largeTopoSock1CPUSet.Union(cpuset.NewCPUSet(10, 34, 22, 47)),
-		},
-		{
-			// Only partial cores are available in the entire system.
-			// Expect allocation of all the CPUs from the partial cores.
-			description: "GuPodMultipleCores, topoQuadSocketFourWayHT, ExpectAllocCPUs",
-			topo:        topoQuadSocketFourWayHT,
-			stAssignments: state.ContainerCPUAssignments{
-				"fakePod": map[string]cpuset.CPUSet{
-					"fakeContainer100": largeTopoCPUSet.Difference(cpuset.NewCPUSet(10, 11, 53, 37, 55, 67, 52)),
-				},
-			},
-			stDefaultCPUSet: cpuset.NewCPUSet(10, 11, 53, 67, 52),
-			pod:             makePod("fakePod", "fakeContainer5", "5000m", "5000m"),
-			expErr:          fmt.Errorf("failed to allocate cpus"),
-			expCPUAlloc:     false,
-			expCSet:         cpuset.NewCPUSet(),
 		},
 		{
 			// Only 7 CPUs are available.
@@ -763,18 +741,6 @@ func TestSMTAwarePolicyAddWithResvList(t *testing.T) {
 			stDefaultCPUSet: cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			pod:             makePod("fakePod", "fakeContainer2", "8000m", "8000m"),
 			expErr:          fmt.Errorf("not enough cpus available to satisfy request"),
-			expCPUAlloc:     false,
-			expCSet:         cpuset.NewCPUSet(),
-		},
-		{
-			description:     "GuPodSingleCore, SingleSocketHT, ExpectAllocOneCPU",
-			topo:            topoSingleSocketHT,
-			numReservedCPUs: 2,
-			reserved:        cpuset.NewCPUSet(0, 1),
-			stAssignments:   state.ContainerCPUAssignments{},
-			stDefaultCPUSet: cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
-			pod:             makePod("fakePod", "fakeContainer2", "1000m", "1000m"),
-			expErr:          fmt.Errorf("failed to allocate cpus"),
 			expCPUAlloc:     false,
 			expCSet:         cpuset.NewCPUSet(),
 		},
