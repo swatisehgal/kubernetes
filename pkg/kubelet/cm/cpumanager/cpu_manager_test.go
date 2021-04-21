@@ -1063,3 +1063,161 @@ func TestCPUManagerAddWithResvList(t *testing.T) {
 		}
 	}
 }
+
+func TestCPUManagerAdmit(t *testing.T) {
+	staticPolicy, _ := NewStaticPolicy(
+		topoSingleSocketHT, 1,
+		cpuset.NewCPUSet(0),
+		topologymanager.NewFakeManager())
+	smtAwarePolicyHT, _ := NewSMTAwarePolicy(
+		topoSingleSocketHT, 1,
+		cpuset.NewCPUSet(0),
+		topologymanager.NewFakeManager())
+	smtAwarePolicyNoHT, _ := NewSMTAwarePolicy(
+		topoDualSocketNoHT, 1,
+		cpuset.NewCPUSet(0),
+		topologymanager.NewFakeManager())
+	tcases := []struct {
+		name     string
+		result   lifecycle.PodAdmitResult
+		qosClass v1.PodQOSClass
+		policy   Policy
+		pod      *v1.Pod
+	}{
+		{
+			name:     "QOSClass set as BestEffort. None Policy.",
+			qosClass: v1.PodQOSBestEffort,
+			policy:   NewNonePolicy(),
+			pod:      makePod("fakePod", "fakeContainer", "2", "0"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Burstable. None Policy.",
+			qosClass: v1.PodQOSBurstable,
+			policy:   NewNonePolicy(),
+			pod:      makePod("fakePod", "fakeContainer", "2", "4"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Guaranteed. None Policy.",
+			qosClass: v1.PodQOSGuaranteed,
+			policy:   NewNonePolicy(),
+			pod:      makePod("fakePod", "fakeContainer", "2", "2"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as BestEffort. Static Policy.",
+			qosClass: v1.PodQOSBestEffort,
+			policy:   staticPolicy,
+			pod:      makePod("fakePod", "fakeContainer", "2", "0"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Burstable. Static Policy.",
+			qosClass: v1.PodQOSBurstable,
+			policy:   staticPolicy,
+			pod:      makePod("fakePod", "fakeContainer", "2", "4"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Guaranteed. Static Policy.",
+			qosClass: v1.PodQOSGuaranteed,
+			policy:   staticPolicy,
+			pod:      makePod("fakePod", "fakeContainer", "2", "2"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as BestEffort. SMTAware Policy. HT Enabled. Even CPU Request.",
+			qosClass: v1.PodQOSBestEffort,
+			policy:   smtAwarePolicyHT,
+			pod:      makePod("fakePod", "fakeContainer", "2", "0"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as BestEffort. SMTAware Policy. HT Enabled. Odd CPU Request.",
+			qosClass: v1.PodQOSBestEffort,
+			policy:   smtAwarePolicyHT,
+			pod:      makePod("fakePod", "fakeContainer", "3", "0"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Burstable. SMTAware Policy. HT Enabled. Even CPU Request.",
+			qosClass: v1.PodQOSBurstable,
+			policy:   smtAwarePolicyHT,
+			pod:      makePod("fakePod", "fakeContainer", "2", "4"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Burstable. SMTAware Policy. HT Enabled. Odd CPU Request.",
+			qosClass: v1.PodQOSBurstable,
+			policy:   smtAwarePolicyHT,
+			pod:      makePod("fakePod", "fakeContainer", "3", "5"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Guaranteed. SMTAware Policy. HT Enabled. Even CPU Request.",
+			qosClass: v1.PodQOSGuaranteed,
+			policy:   smtAwarePolicyHT,
+			pod:      makePod("fakePod", "fakeContainer", "2", "2"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Guaranteed. SMTAware Policy. HT Enabled. Odd CPU Request.",
+			qosClass: v1.PodQOSGuaranteed,
+			policy:   smtAwarePolicyHT,
+			pod:      makePod("fakePod", "fakeContainer", "3", "3"),
+			result:   smtAlignmentError(3, 2),
+		},
+		{
+			name:     "QOSClass set as BestEffort. SMTAware Policy. HT Disabled. Even CPU Request.",
+			qosClass: v1.PodQOSBestEffort,
+			policy:   smtAwarePolicyNoHT,
+			pod:      makePod("fakePod", "fakeContainer", "2", "0"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as BestEffort. SMTAware Policy. HT Disabled. Odd CPU Request.",
+			qosClass: v1.PodQOSBestEffort,
+			policy:   smtAwarePolicyNoHT,
+			pod:      makePod("fakePod", "fakeContainer", "3", "0"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Burstable. SMTAware Policy. HT Disabled. Even CPU Request.",
+			qosClass: v1.PodQOSBurstable,
+			policy:   smtAwarePolicyNoHT,
+			pod:      makePod("fakePod", "fakeContainer", "2", "4"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Burstable. SMTAware Policy. HT Disabled. Odd CPU Request.",
+			qosClass: v1.PodQOSBurstable,
+			policy:   smtAwarePolicyNoHT,
+			pod:      makePod("fakePod", "fakeContainer", "3", "5"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Guaranteed. SMTAware Policy. HT Disabled. Even CPU Request.",
+			qosClass: v1.PodQOSGuaranteed,
+			policy:   smtAwarePolicyNoHT,
+			pod:      makePod("fakePod", "fakeContainer", "2", "2"),
+			result:   admitPod(),
+		},
+		{
+			name:     "QOSClass set as Guaranteed. SMTAware Policy. HT Disabled. Odd CPU Request.",
+			qosClass: v1.PodQOSGuaranteed,
+			policy:   smtAwarePolicyNoHT,
+			pod:      makePod("fakePod", "fakeContainer", "3", "3"),
+			result:   admitPod(),
+		},
+	}
+	for _, tc := range tcases {
+		tc.pod.Status.QOSClass = tc.qosClass
+		// Policy Admit
+		actual := tc.policy.Admit(tc.pod)
+		if actual.Admit != tc.result.Admit {
+			t.Errorf("%v", tc.name)
+			t.Errorf("Error occurred, expected Admit in result to be %v got %v", tc.result.Admit, actual.Admit)
+		}
+	}
+}
