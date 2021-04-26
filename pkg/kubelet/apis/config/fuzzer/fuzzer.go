@@ -19,7 +19,7 @@ package fuzzer
 import (
 	"time"
 
-	"github.com/google/gofuzz"
+	fuzz "github.com/google/gofuzz"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
@@ -68,6 +68,7 @@ func Funcs(codecs runtimeserializer.CodecFactory) []interface{} {
 			obj.NodeStatusReportFrequency = metav1.Duration{Duration: time.Minute}
 			obj.NodeLeaseDurationSeconds = 40
 			obj.CPUManagerPolicy = "none"
+			obj.CPUManagerPolicyOptions = []string{}
 			obj.CPUManagerReconcilePeriod = obj.NodeStatusUpdateFrequency
 			obj.NodeStatusMaxImages = 50
 			obj.TopologyManagerPolicy = kubeletconfig.NoneTopologyManagerPolicy
