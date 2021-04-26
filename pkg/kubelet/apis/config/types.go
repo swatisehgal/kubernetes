@@ -221,6 +221,9 @@ type KubeletConfiguration struct {
 	// CPUManagerPolicy is the name of the policy to use.
 	// Requires the CPUManager feature gate to be enabled.
 	CPUManagerPolicy string
+	// CPUManagerPolicyOptions is the name of the CPU Manager policy options to use.
+	// Requires the CPUManager feature gate to be enabled.
+	CPUManagerPolicyOptions []string
 	// CPU Manager reconciliation period.
 	// Requires the CPUManager feature gate to be enabled.
 	CPUManagerReconcilePeriod metav1.Duration
