@@ -433,6 +433,13 @@ type KubeletConfiguration struct {
 	// Default: "None"
 	// +optional
 	CPUManagerPolicy string `json:"cpuManagerPolicy,omitempty"`
+	// CPUManagerPolicyOptions is the name of the CPU Manager policy Options to use.
+	// Requires the CPUManager feature gate to be enabled.
+	// Dynamic Kubelet Config (beta): This field should not be updated without a full node
+	// reboot. It is safest to keep this value the same as the local config.
+	// Default: ""
+	// +optional
+	CPUManagerPolicyOptions []string `json:"cpuManagerPolicyOptions,omitempty"`
 	// CPU Manager reconciliation period.
 	// Requires the CPUManager feature gate to be enabled.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
