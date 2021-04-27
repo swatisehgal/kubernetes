@@ -83,8 +83,9 @@ type staticPolicy struct {
 	affinity topologymanager.Store
 	// set of CPUs to reuse across allocations in a pod
 	cpusToReuse map[string]cpuset.CPUSet
-	// cpuManagerPolicyOptions configured on the node
-	cpuManagerPolicyOptions []string
+	// flag to enable extra allocation restrictions to avoid
+	// different containers to possibly end up on the same core
+	smtAwarenessEnabled bool
 }
 
 // Ensure staticPolicy implements Policy interface
@@ -115,11 +116,11 @@ func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int, reserv
 	klog.InfoS("Reserved CPUs not available for exclusive assignment", "reservedSize", reserved.Size(), "reserved", reserved)
 
 	return &staticPolicy{
-		topology:                topology,
-		reserved:                reserved,
-		affinity:                affinity,
-		cpusToReuse:             make(map[string]cpuset.CPUSet),
-		cpuManagerPolicyOptions: cpuPolicyOptions,
+		topology:            topology,
+		reserved:            reserved,
+		affinity:            affinity,
+		cpusToReuse:         make(map[string]cpuset.CPUSet),
+		smtAwarenessEnabled: isSMTAwarePolicyOptionEnabled(cpuPolicyOptions),
 	}, nil
 }
 
@@ -227,7 +228,7 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 		klog.InfoS("Static policy: Allocate", "pod", klog.KObj(pod), "containerName", container.Name)
 		// container belongs in an exclusively allocated pool
 
-		if numCPUs%p.topology.CPUsPerCore() != 0 && isSMTAwarePolicyOptionEnabled(p.cpuManagerPolicyOptions) {
+		if p.smtAwarenessEnabled && numCPUs%p.topology.CPUsPerCore() != 0 {
 			// Since CPU Manager has been enabled with `smtaware` policy, it means a guaranteed pod can only be admitted
 			// if the CPU requested is a multiple of the number of virtual cpus per physical cores.
 			// In case CPU request is not a multiple of the number of virtual cpus per physical cores the Pod will be put
