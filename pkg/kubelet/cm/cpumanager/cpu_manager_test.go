@@ -229,7 +229,8 @@ func TestCPUManagerAdd(t *testing.T) {
 		},
 		0,
 		cpuset.NewCPUSet(),
-		topologymanager.NewFakeManager())
+		topologymanager.NewFakeManager(),
+		[]string{})
 	testCases := []struct {
 		description        string
 		updateErr          error
@@ -301,6 +302,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 		description      string
 		topo             *topology.CPUTopology
 		numReservedCPUs  int
+		cpuPolicyOptions []string
 		initContainerIDs []string
 		containerIDs     []string
 		stAssignments    state.ContainerCPUAssignments
@@ -313,6 +315,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "No Guaranteed Init CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID"},
@@ -329,6 +332,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Equal Number of Guaranteed CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID"},
@@ -345,6 +349,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "More Init Container Guaranteed CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID"},
@@ -361,6 +366,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Less Init Container Guaranteed CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID"},
@@ -377,6 +383,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Multi Init Container Equal CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID-1", "initFakeID-2"},
@@ -397,6 +404,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Multi Init Container Less CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID-1", "initFakeID-2"},
@@ -417,6 +425,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Multi Init Container More CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID-1", "initFakeID-2"},
@@ -437,6 +446,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Multi Init Container Increasing CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID-1", "initFakeID-2"},
@@ -457,6 +467,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 			description:      "Multi Init, Multi App Container Split CPUs",
 			topo:             topoSingleSocketHT,
 			numReservedCPUs:  0,
+			cpuPolicyOptions: []string{},
 			stAssignments:    state.ContainerCPUAssignments{},
 			stDefaultCPUSet:  cpuset.NewCPUSet(0, 1, 2, 3, 4, 5, 6, 7),
 			initContainerIDs: []string{"initFakeID-1", "initFakeID-2"},
@@ -478,7 +489,7 @@ func TestCPUManagerAddWithInitContainers(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager(), testCase.cpuPolicyOptions)
 
 		mockState := &mockState{
 			assignments:   testCase.stAssignments,
@@ -550,6 +561,7 @@ func TestCPUManagerGenerate(t *testing.T) {
 	testCases := []struct {
 		description                string
 		cpuPolicyName              string
+		cpuPolicyOptions           []string
 		nodeAllocatableReservation v1.ResourceList
 		isTopologyBroken           bool
 		expectedPolicy             string
@@ -558,24 +570,28 @@ func TestCPUManagerGenerate(t *testing.T) {
 		{
 			description:                "set none policy",
 			cpuPolicyName:              "none",
+			cpuPolicyOptions:           []string{},
 			nodeAllocatableReservation: nil,
 			expectedPolicy:             "none",
 		},
 		{
 			description:                "invalid policy name",
 			cpuPolicyName:              "invalid",
+			cpuPolicyOptions:           []string{},
 			nodeAllocatableReservation: nil,
 			expectedError:              fmt.Errorf("unknown policy: \"invalid\""),
 		},
 		{
 			description:                "static policy",
 			cpuPolicyName:              "static",
+			cpuPolicyOptions:           []string{},
 			nodeAllocatableReservation: v1.ResourceList{v1.ResourceCPU: *resource.NewQuantity(3, resource.DecimalSI)},
 			expectedPolicy:             "static",
 		},
 		{
 			description:                "static policy - broken topology",
 			cpuPolicyName:              "static",
+			cpuPolicyOptions:           []string{},
 			nodeAllocatableReservation: v1.ResourceList{},
 			isTopologyBroken:           true,
 			expectedError:              fmt.Errorf("could not detect number of cpus"),
@@ -583,12 +599,14 @@ func TestCPUManagerGenerate(t *testing.T) {
 		{
 			description:                "static policy - broken reservation",
 			cpuPolicyName:              "static",
+			cpuPolicyOptions:           []string{},
 			nodeAllocatableReservation: v1.ResourceList{},
 			expectedError:              fmt.Errorf("unable to determine reserved CPU resources for static policy"),
 		},
 		{
 			description:                "static policy - no CPU resources",
 			cpuPolicyName:              "static",
+			cpuPolicyOptions:           []string{},
 			nodeAllocatableReservation: v1.ResourceList{v1.ResourceCPU: *resource.NewQuantity(0, resource.DecimalSI)},
 			expectedError:              fmt.Errorf("the static policy requires systemreserved.cpu + kubereserved.cpu to be greater than zero"),
 		},
@@ -632,7 +650,7 @@ func TestCPUManagerGenerate(t *testing.T) {
 			}
 			defer os.RemoveAll(sDir)
 
-			mgr, err := NewManager(testCase.cpuPolicyName, 5*time.Second, machineInfo, cpuset.NewCPUSet(), testCase.nodeAllocatableReservation, sDir, topologymanager.NewFakeManager())
+			mgr, err := NewManager(testCase.cpuPolicyName, testCase.cpuPolicyOptions, 5*time.Second, machineInfo, cpuset.NewCPUSet(), testCase.nodeAllocatableReservation, sDir, topologymanager.NewFakeManager())
 			if testCase.expectedError != nil {
 				if !strings.Contains(err.Error(), testCase.expectedError.Error()) {
 					t.Errorf("Unexpected error message. Have: %s wants %s", err.Error(), testCase.expectedError.Error())
@@ -1000,7 +1018,8 @@ func TestCPUManagerAddWithResvList(t *testing.T) {
 		},
 		1,
 		cpuset.NewCPUSet(0),
-		topologymanager.NewFakeManager())
+		topologymanager.NewFakeManager(),
+		[]string{})
 	testCases := []struct {
 		description        string
 		updateErr          error
