@@ -21,7 +21,7 @@ import (
 
 	"sync"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
@@ -161,4 +161,21 @@ func unexpectedAdmissionError(err error) lifecycle.PodAdmitResult {
 
 func admitPod() lifecycle.PodAdmitResult {
 	return lifecycle.PodAdmitResult{Admit: true}
+}
+
+func smtAlignmentError(err error) lifecycle.PodAdmitResult {
+	return lifecycle.PodAdmitResult{
+		Message: err.Error(),
+		Reason:  "SMTAlignmentError",
+		Admit:   false,
+	}
+}
+
+type SMTAlignmentError struct {
+	RequestedCPUs int
+	CpusPerCore   int
+}
+
+func (e SMTAlignmentError) Error() string {
+	return fmt.Sprintf("SMT Alignment Error: requested %d cpus not multiple cpus per core = %d", e.RequestedCPUs, e.CpusPerCore)
 }
