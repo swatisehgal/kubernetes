@@ -764,9 +764,13 @@ func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle
 		if m.cpuManager != nil {
 			err = m.cpuManager.Allocate(pod, &container)
 			if err != nil {
+				reason := "UnexpectedAdmissionError"
+				if _, ok := err.(*topologymanager.SMTAlignmentError); ok {
+					reason = "SMTAlignmentError"
+				}
 				return lifecycle.PodAdmitResult{
 					Message: fmt.Sprintf("Allocate failed due to %v, which is unexpected", err),
-					Reason:  "UnexpectedAdmissionError",
+					Reason:  reason,
 					Admit:   false,
 				}
 			}
