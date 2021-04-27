@@ -19,6 +19,7 @@ package topologymanager
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/kubelet/cm/admission"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
@@ -50,7 +51,7 @@ func (s *podScope) Admit(pod *v1.Pod) lifecycle.PodAdmitResult {
 	bestHint, admit := s.calculateAffinity(pod)
 	klog.InfoS("Best TopologyHint", "bestHint", bestHint, "pod", klog.KObj(pod))
 	if !admit {
-		return topologyAffinityError()
+		return admission.TopologyAffinityError()
 	}
 
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
@@ -59,13 +60,10 @@ func (s *podScope) Admit(pod *v1.Pod) lifecycle.PodAdmitResult {
 
 		err := s.allocateAlignedResources(pod, &container)
 		if err != nil {
-			if _, ok := err.(*SMTAlignmentError); ok {
-				return smtAlignmentError(err)
-			}
-			return unexpectedAdmissionError(err)
+			return admission.DispatchError(err)
 		}
 	}
-	return admitPod()
+	return admission.AdmitPod()
 }
 
 func (s *podScope) accumulateProvidersHints(pod *v1.Pod) []map[string][]TopologyHint {

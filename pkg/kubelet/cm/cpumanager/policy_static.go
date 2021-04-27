@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	v1qos "k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/options"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/state"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
@@ -32,8 +33,6 @@ import (
 const (
 	// PolicyStatic is the name of the static policy
 	PolicyStatic policyName = "static"
-	// SMTAwarePolicyOption is the name of the CPU Manager policy option
-	SMTAwarePolicyOption string = "smtaware"
 )
 
 // staticPolicy is a CPU manager policy that does not change CPU
@@ -120,7 +119,7 @@ func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int, reserv
 		reserved:            reserved,
 		affinity:            affinity,
 		cpusToReuse:         make(map[string]cpuset.CPUSet),
-		smtAwarenessEnabled: isSMTAwarePolicyOptionEnabled(cpuPolicyOptions),
+		smtAwarenessEnabled: options.IsSMTAwareEnabled(cpuPolicyOptions),
 	}, nil
 }
 
@@ -238,9 +237,9 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 			// Just like the behaviour in case of static policy, takeByTopology will try to first allocate CPUs from the same socket
 			// and only in case the request cannot be sattisfied on a single socket, CPU allocation is done for a workload to occupy all
 			// CPUs on a physical core. Allocation of individual threads would never have to occur.
-			return topologymanager.SMTAlignmentError{
-				requestedCPUs: numCPUs,
-				cpusPerCore:   p.topology.CPUsPerCore(),
+			return options.SMTAlignmentError{
+				RequestedCPUs: numCPUs,
+				CpusPerCore:   p.topology.CPUsPerCore(),
 			}
 		}
 		if cpuset, ok := s.GetCPUSet(string(pod.UID), container.Name); ok {
@@ -526,13 +525,4 @@ func (p *staticPolicy) generateCPUTopologyHints(availableCPUs cpuset.CPUSet, reu
 	}
 
 	return hints
-}
-
-func isSMTAwarePolicyOptionEnabled(policyOptions []string) bool {
-	for _, option := range policyOptions {
-		if option == SMTAwarePolicyOption {
-			return true
-		}
-	}
-	return false
 }
