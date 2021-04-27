@@ -163,25 +163,19 @@ func admitPod() lifecycle.PodAdmitResult {
 	return lifecycle.PodAdmitResult{Admit: true}
 }
 
-type SMTAlignmentError struct {
-	requestedCPUs int
-	cpusPerCore   int
-}
-
-func (e *SMTAlignmentError) Error() string {
-	errorMessage := fmt.Sprintf("Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", e.cpusPerCore, e.requestedCPUs)
-	return errorMessage
-}
-func NewSMTAlignmentError(requestedCPUCount, cpusPerCoreCount int) error {
-	return &SMTAlignmentError{
-		requestedCPUs: requestedCPUCount,
-		cpusPerCore:   cpusPerCoreCount,
-	}
-}
 func smtAlignmentError(err error) lifecycle.PodAdmitResult {
 	return lifecycle.PodAdmitResult{
 		Message: err.Error(),
 		Reason:  "SMTAlignmentError",
 		Admit:   false,
 	}
+}
+
+type SMTAlignmentError struct {
+	requestedCPUs int
+	cpusPerCore   int
+}
+
+func (e SMTAlignmentError) Error() string {
+	return fmt.Sprintf("Number of CPUs requested should be a multiple of number of CPUs on a core = %d on this system. Requested CPU count = %d", e.cpusPerCore, e.requestedCPUs)
 }
