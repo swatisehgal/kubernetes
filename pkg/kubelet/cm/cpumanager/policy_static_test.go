@@ -34,6 +34,7 @@ type staticPolicyTest struct {
 	topo            *topology.CPUTopology
 	numReservedCPUs int
 	podUID          string
+	options         []string
 	containerName   string
 	stAssignments   state.ContainerCPUAssignments
 	stDefaultCPUSet cpuset.CPUSet
@@ -44,7 +45,7 @@ type staticPolicyTest struct {
 }
 
 func TestStaticPolicyName(t *testing.T) {
-	policy, _ := NewStaticPolicy(topoSingleSocketHT, 1, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+	policy, _ := NewStaticPolicy(topoSingleSocketHT, 1, cpuset.NewCPUSet(), topologymanager.NewFakeManager(), []string{})
 
 	policyName := policy.Name()
 	if policyName != "static" {
@@ -120,7 +121,7 @@ func TestStaticPolicyStart(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			p, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+			p, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager(), testCase.options)
 			policy := p.(*staticPolicy)
 			st := &mockState{
 				assignments:   testCase.stAssignments,
@@ -436,7 +437,7 @@ func TestStaticPolicyAdd(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager(), testCase.options)
 
 		st := &mockState{
 			assignments:   testCase.stAssignments,
@@ -537,7 +538,7 @@ func TestStaticPolicyRemove(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, cpuset.NewCPUSet(), topologymanager.NewFakeManager(), testCase.options)
 
 		st := &mockState{
 			assignments:   testCase.stAssignments,
@@ -562,6 +563,7 @@ func TestTopologyAwareAllocateCPUs(t *testing.T) {
 	testCases := []struct {
 		description     string
 		topo            *topology.CPUTopology
+		options         []string
 		stAssignments   state.ContainerCPUAssignments
 		stDefaultCPUSet cpuset.CPUSet
 		numRequested    int
@@ -627,7 +629,7 @@ func TestTopologyAwareAllocateCPUs(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		p, _ := NewStaticPolicy(tc.topo, 0, cpuset.NewCPUSet(), topologymanager.NewFakeManager())
+		p, _ := NewStaticPolicy(tc.topo, 0, cpuset.NewCPUSet(), topologymanager.NewFakeManager(), tc.options)
 		policy := p.(*staticPolicy)
 		st := &mockState{
 			assignments:   tc.stAssignments,
@@ -658,6 +660,7 @@ func TestTopologyAwareAllocateCPUs(t *testing.T) {
 type staticPolicyTestWithResvList struct {
 	description     string
 	topo            *topology.CPUTopology
+	options         []string
 	numReservedCPUs int
 	reserved        cpuset.CPUSet
 	stAssignments   state.ContainerCPUAssignments
@@ -701,7 +704,7 @@ func TestStaticPolicyStartWithResvList(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			p, err := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, testCase.reserved, topologymanager.NewFakeManager())
+			p, err := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, testCase.reserved, topologymanager.NewFakeManager(), testCase.options)
 			if !reflect.DeepEqual(err, testCase.expNewErr) {
 				t.Errorf("StaticPolicy Start() error (%v). expected error: %v but got: %v",
 					testCase.description, testCase.expNewErr, err)
@@ -778,7 +781,7 @@ func TestStaticPolicyAddWithResvList(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, testCase.reserved, topologymanager.NewFakeManager())
+		policy, _ := NewStaticPolicy(testCase.topo, testCase.numReservedCPUs, testCase.reserved, topologymanager.NewFakeManager(), testCase.options)
 
 		st := &mockState{
 			assignments:   testCase.stAssignments,
