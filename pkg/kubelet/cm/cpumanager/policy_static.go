@@ -29,8 +29,12 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 )
 
-// PolicyStatic is the name of the static policy
-const PolicyStatic policyName = "static"
+const (
+	// PolicyStatic is the name of the static policy
+	PolicyStatic policyName = "static"
+	// SMTAwarePolicyOption is the name of the CPU Manager policy option
+	SMTAwarePolicyOption string = "smtaware"
+)
 
 // staticPolicy is a CPU manager policy that does not change CPU
 // assignments for exclusively pinned guaranteed containers after the main
@@ -79,6 +83,8 @@ type staticPolicy struct {
 	affinity topologymanager.Store
 	// set of CPUs to reuse across allocations in a pod
 	cpusToReuse map[string]cpuset.CPUSet
+	// cpuManagerPolicyOptions configured on the node
+	cpuManagerPolicyOptions []string
 }
 
 // Ensure staticPolicy implements Policy interface
@@ -87,7 +93,7 @@ var _ Policy = &staticPolicy{}
 // NewStaticPolicy returns a CPU manager policy that does not change CPU
 // assignments for exclusively pinned guaranteed containers after the main
 // container process starts.
-func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int, reservedCPUs cpuset.CPUSet, affinity topologymanager.Store) (Policy, error) {
+func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int, reservedCPUs cpuset.CPUSet, affinity topologymanager.Store, cpuPolicyOptions []string) (Policy, error) {
 	allCPUs := topology.CPUDetails.CPUs()
 	var reserved cpuset.CPUSet
 	if reservedCPUs.Size() > 0 {
@@ -109,10 +115,11 @@ func NewStaticPolicy(topology *topology.CPUTopology, numReservedCPUs int, reserv
 	klog.InfoS("Reserved CPUs not available for exclusive assignment", "reservedSize", reserved.Size(), "reserved", reserved)
 
 	return &staticPolicy{
-		topology:    topology,
-		reserved:    reserved,
-		affinity:    affinity,
-		cpusToReuse: make(map[string]cpuset.CPUSet),
+		topology:                topology,
+		reserved:                reserved,
+		affinity:                affinity,
+		cpusToReuse:             make(map[string]cpuset.CPUSet),
+		cpuManagerPolicyOptions: cpuPolicyOptions,
 	}, nil
 }
 
@@ -220,6 +227,18 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 		klog.InfoS("Static policy: Allocate", "pod", klog.KObj(pod), "containerName", container.Name)
 		// container belongs in an exclusively allocated pool
 
+		if numCPUs%p.topology.CPUsPerCore() != 0 && isSMTAwarePolicyOptionEnabled(p.cpuManagerPolicyOptions) {
+			// Since CPU Manager has been enabled with `smtaware` policy, it means a guaranteed pod can only be admitted
+			// if the CPU requested is a multiple of the number of virtual cpus per physical cores.
+			// In case CPU request is not a multiple of the number of virtual cpus per physical cores the Pod will be put
+			// in Failed state, with SMTAlignmentError as reason. Since the allocation happens in terms of physical cores
+			// and the scheduler is responsible for ensuring that the workload goes to a node that has enough CPUs,
+			// the pod would be placed on a node where there are enough physical cores available to be allocated.
+			// Just like the behaviour in case of static policy, takeByTopology will try to first allocate CPUs from the same socket
+			// and only in case the request cannot be sattisfied on a single socket, CPU allocation is done for a workload to occupy all
+			// CPUs on a physical core. Allocation of individual threads would never have to occur.
+			return topologymanager.NewSMTAlignmentError(numCPUs, p.topology.CPUsPerCore())
+		}
 		if cpuset, ok := s.GetCPUSet(string(pod.UID), container.Name); ok {
 			p.updateCPUsToReuse(pod, container, cpuset)
 			klog.InfoS("Static policy: container already present in state, skipping", "pod", klog.KObj(pod), "containerName", container.Name)
@@ -503,4 +522,13 @@ func (p *staticPolicy) generateCPUTopologyHints(availableCPUs cpuset.CPUSet, reu
 	}
 
 	return hints
+}
+
+func isSMTAwarePolicyOptionEnabled(policyOptions []string) bool {
+	for _, option := range policyOptions {
+		if option == SMTAwarePolicyOption {
+			return true
+		}
+	}
+	return false
 }
