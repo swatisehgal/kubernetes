@@ -237,7 +237,7 @@ func (p *staticPolicy) Allocate(s state.State, pod *v1.Pod, container *v1.Contai
 			// Just like the behaviour in case of static policy, takeByTopology will try to first allocate CPUs from the same socket
 			// and only in case the request cannot be sattisfied on a single socket, CPU allocation is done for a workload to occupy all
 			// CPUs on a physical core. Allocation of individual threads would never have to occur.
-			return SMTAlignmentError{
+			return topologymanager.SMTAlignmentError{
 				requestedCPUs: numCPUs,
 				cpusPerCore:   p.topology.CPUsPerCore(),
 			}
