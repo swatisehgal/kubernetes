@@ -17,8 +17,10 @@ limitations under the License.
 package e2enode
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +36,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
+	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 
 	"github.com/onsi/ginkgo"
@@ -663,6 +666,20 @@ func runCPUManagerTests(f *framework.Framework) {
 		ginkgo.By("the deleted pod has already been deleted from the state file")
 	})
 
+	ginkgo.It("SMTAware Static CPU Manager: should assign CPUs as expected based on the Pod spec", func() {
+		cpuCap, _, _ = getLocalNodeCPUDetails(f)
+
+		// Skip CPU Manager tests altogether if the CPU capacity < 2.
+		if cpuCap < 2 {
+			e2eskipper.Skipf("Skipping CPU Manager tests since the CPU capacity < 2")
+		}
+
+		// Enable CPU Manager in the kubelet with static policy and smtaware policy option.
+		oldCfg = enableCPUManagerInKubelet(f, true, string(cpumanager.PolicyStatic), []string{cpumanager.SMTAwarePolicyOption})
+
+		runCPUManagerNodeAlignmentSuiteTests(f, string(cpumanager.PolicyStatic), []string{cpumanager.SMTAwarePolicyOption})
+	})
+
 	ginkgo.AfterEach(func() {
 		setOldKubeletConfig(f, oldCfg)
 	})
@@ -676,3 +693,131 @@ var _ = SIGDescribe("CPU Manager [Serial] [Feature:CPUManager][NodeAlphaFeature:
 		runCPUManagerTests(f)
 	})
 })
+
+func makeCPUManagerTestPod(podName string, tmCtnAttributes, tmInitCtnAttributes []tmCtnAttribute) *v1.Pod {
+	var containers, initContainers []v1.Container
+	if len(tmInitCtnAttributes) > 0 {
+		initContainers = makeContainers(numaAlignmentCommand, tmInitCtnAttributes)
+	}
+	containers = makeContainers(numaAlignmentSleepCommand, tmCtnAttributes)
+
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: podName,
+		},
+		Spec: v1.PodSpec{
+			RestartPolicy:  v1.RestartPolicyNever,
+			InitContainers: initContainers,
+			Containers:     containers,
+		},
+	}
+}
+
+func runCPUManagerNodeAlignmentSuiteTests(f *framework.Framework, policy string, options []string) {
+
+	cpuMgrEnvInfo := &testCPUManagerEnvInfo{
+		policy:        policy,
+		policyOptions: options,
+	}
+
+	// could have been a loop, we unroll it to explain the testcases
+	var ctnAttrs, initCtnAttrs []tmCtnAttribute
+
+	// simplest case
+	ginkgo.By(fmt.Sprintf("Successfully admit one guaranteed pod with 2 cores"))
+	ctnAttrs = []tmCtnAttribute{
+		{
+			ctnName:    "gu-container",
+			cpuRequest: "2000m",
+			cpuLimit:   "2000m",
+		},
+	}
+	runCPUManagerPositiveTest(f, 1, ctnAttrs, initCtnAttrs, cpuMgrEnvInfo)
+	// this is the only policy that can guarantee reliable rejects
+	if policy == string(cpumanager.PolicyStatic) && contains(options, cpumanager.SMTAwarePolicyOption) && isHTEnabled() {
+		ginkgo.By(fmt.Sprintf("Trying to admit a guaranteed pods, with 3 cores,  and it should be rejected"))
+		ctnAttrs = []tmCtnAttribute{
+			{
+				ctnName:    "gu-container",
+				cpuRequest: "3000m",
+				cpuLimit:   "3000m",
+			},
+		}
+		runCPUManagerNegativeTest(f, ctnAttrs, initCtnAttrs, cpuMgrEnvInfo)
+	}
+}
+
+func runCPUManagerPositiveTest(f *framework.Framework, numPods int, ctnAttrs, initCtnAttrs []tmCtnAttribute, envInfo *testCPUManagerEnvInfo) {
+	podMap := make(map[string]*v1.Pod)
+
+	for podID := 0; podID < numPods; podID++ {
+		podName := fmt.Sprintf("gu-pod-%d", podID)
+		framework.Logf("creating pod %s attrs %v", podName, ctnAttrs)
+		pod := makeCPUManagerTestPod(podName, ctnAttrs, initCtnAttrs)
+		pod = f.PodClient().CreateSync(pod)
+		framework.Logf("created pod %s", podName)
+		podMap[podName] = pod
+	}
+
+	if envInfo.policy == string(cpumanager.PolicyStatic) && contains(envInfo.policyOptions, cpumanager.SMTAwarePolicyOption) && isHTEnabled() {
+		for _, pod := range podMap {
+			validatePodCPUAlignment(f, pod, envInfo)
+		}
+	}
+
+	deletePodsAsync(f, podMap)
+}
+
+func runCPUManagerNegativeTest(f *framework.Framework, ctnAttrs, initCtnAttrs []tmCtnAttribute, envInfo *testCPUManagerEnvInfo) {
+	podName := "gu-pod"
+	framework.Logf("creating pod %s attrs %v", podName, ctnAttrs)
+	pod := makeCPUManagerTestPod(podName, ctnAttrs, initCtnAttrs)
+
+	pod = f.PodClient().Create(pod)
+	err := e2epod.WaitForPodCondition(f.ClientSet, f.Namespace.Name, pod.Name, "Failed", 30*time.Second, func(pod *v1.Pod) (bool, error) {
+		if pod.Status.Phase != v1.PodPending {
+			return true, nil
+		}
+		return false, nil
+	})
+	framework.ExpectNoError(err)
+	pod, err = f.PodClient().Get(context.TODO(), pod.Name, metav1.GetOptions{})
+	framework.ExpectNoError(err)
+
+	if pod.Status.Phase != v1.PodFailed {
+		framework.Failf("pod %s not failed: %v", pod.Name, pod.Status)
+	}
+	if !isSMTAlignmentError(pod) {
+		framework.Failf("pod %s failed for wrong reason: %q", pod.Name, pod.Status.Reason)
+	}
+
+	deletePodSyncByName(f, pod.Name)
+}
+
+func validatePodCPUAlignment(f *framework.Framework, pod *v1.Pod, envInfo *testCPUManagerEnvInfo) {
+	framework.Logf("validatePodCPUAlignment")
+	for _, cnt := range pod.Spec.Containers {
+		ginkgo.By(fmt.Sprintf("validating the container %s on Gu pod %s", cnt.Name, pod.Name))
+
+		logs, err := e2epod.GetPodLogs(f.ClientSet, f.Namespace.Name, pod.Name, cnt.Name)
+		framework.ExpectNoError(err, "expected log not found in container [%s] of pod [%s]", cnt.Name, pod.Name)
+
+		framework.Logf("got pod logs: %v", logs)
+		err = checkSMTAlignment(f, pod, &cnt, logs, envInfo)
+		framework.ExpectNoError(err, "SMT Alignment check failed for [%s] of pod [%s]", cnt.Name, pod.Name)
+	}
+}
+
+func contains(policyOptions []string, option string) bool {
+	for _, policyOption := range policyOptions {
+		if policyOption == option {
+			return true
+		}
+	}
+	return false
+}
+
+func isSMTAlignmentError(pod *v1.Pod) bool {
+	re := regexp.MustCompile(`SMT.*Alignment.*Error`)
+	return re.MatchString(pod.Status.Reason)
+}
