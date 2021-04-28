@@ -209,12 +209,12 @@ func disableCPUManagerInKubelet(f *framework.Framework) (oldCfg *kubeletconfig.K
 	return oldCfg
 }
 
-func enableCPUManagerInKubelet(f *framework.Framework, cleanStateFile bool) (oldCfg *kubeletconfig.KubeletConfiguration) {
-	return configureCPUManagerInKubelet(f, cleanStateFile, cpuset.CPUSet{})
+func enableCPUManagerInKubelet(f *framework.Framework, cleanStateFile bool, policy string, policyOptions []string) (oldCfg *kubeletconfig.KubeletConfiguration) {
+	return configureCPUManagerInKubelet(f, cleanStateFile, cpuset.CPUSet{}, policy, policyOptions)
 }
 
-func configureCPUManagerInKubelet(f *framework.Framework, cleanStateFile bool, reservedSystemCPUs cpuset.CPUSet) (oldCfg *kubeletconfig.KubeletConfiguration) {
-	// Enable CPU Manager in Kubelet with static policy.
+func configureCPUManagerInKubelet(f *framework.Framework, cleanStateFile bool, reservedSystemCPUs cpuset.CPUSet, policy string, policyOptions []string) (oldCfg *kubeletconfig.KubeletConfiguration) {
+	// Enable CPU Manager in Kubelet with the provided policy.
 	oldCfg, err := getCurrentKubeletConfig()
 	framework.ExpectNoError(err)
 	newCfg := oldCfg.DeepCopy()
@@ -238,7 +238,10 @@ func configureCPUManagerInKubelet(f *framework.Framework, cleanStateFile bool, r
 	}
 
 	// Set the CPU Manager policy to static.
-	newCfg.CPUManagerPolicy = string(cpumanager.PolicyStatic)
+	newCfg.CPUManagerPolicy = policy
+
+	// Set the CPU Manager policy to static.
+	newCfg.CPUManagerPolicyOptions = policyOptions
 
 	// Set the CPU Manager reconcile period to 1 second.
 	newCfg.CPUManagerReconcilePeriod = metav1.Duration{Duration: 1 * time.Second}
@@ -577,7 +580,7 @@ func runCPUManagerTests(f *framework.Framework) {
 	var ctnAttrs []ctnAttribute
 	var pod *v1.Pod
 
-	ginkgo.It("should assign CPUs as expected based on the Pod spec", func() {
+	ginkgo.It("Static Policy: should assign CPUs as expected based on the Pod spec", func() {
 		cpuCap, cpuAlloc, _ = getLocalNodeCPUDetails(f)
 
 		// Skip CPU Manager tests altogether if the CPU capacity < 2.
@@ -585,8 +588,8 @@ func runCPUManagerTests(f *framework.Framework) {
 			e2eskipper.Skipf("Skipping CPU Manager tests since the CPU capacity < 2")
 		}
 
-		// Enable CPU Manager in the kubelet.
-		oldCfg = enableCPUManagerInKubelet(f, true)
+		// Enable CPU Manager in the kubelet with static policy.
+		oldCfg = enableCPUManagerInKubelet(f, true, string(cpumanager.PolicyStatic), []string{})
 
 		ginkgo.By("running a non-Gu pod")
 		runNonGuPodTest(f, cpuCap)
@@ -653,7 +656,7 @@ func runCPUManagerTests(f *framework.Framework) {
 		waitForContainerRemoval(pod.Spec.Containers[0].Name, pod.Name, pod.Namespace)
 
 		ginkgo.By("enable cpu manager in kubelet without delete state file")
-		enableCPUManagerInKubelet(f, false)
+		enableCPUManagerInKubelet(f, false, string(cpumanager.PolicyStatic), []string{})
 
 		ginkgo.By("wait for the deleted pod to be cleaned up from the state file")
 		waitForStateFileCleanedUp()
