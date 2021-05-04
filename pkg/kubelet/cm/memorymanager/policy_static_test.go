@@ -28,7 +28,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/memorymanager/state"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
-	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 )
 
@@ -93,11 +92,9 @@ func (m *fakeTopologyManagerWithHint) RemoveContainer(containerID string) error 
 	return nil
 }
 
-func (m *fakeTopologyManagerWithHint) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
+func (m *fakeTopologyManagerWithHint) Admit(pod *v1.Pod) error {
 	m.t.Logf("[fake topologymanager] Topology Admit Handler")
-	return lifecycle.PodAdmitResult{
-		Admit: true,
-	}
+	return nil
 }
 
 func (m *fakeTopologyManagerWithHint) GetAffinity(podUID string, containerName string) topologymanager.TopologyHint {
