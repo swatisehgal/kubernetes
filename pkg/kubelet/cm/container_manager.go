@@ -29,8 +29,10 @@ import (
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
+	"k8s.io/kubernetes/pkg/kubelet/cm/admission"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
+	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	evictionapi "k8s.io/kubernetes/pkg/kubelet/eviction/api"
@@ -224,4 +226,17 @@ func containerDevicesFromResourceDeviceInstances(devs devicemanager.ResourceDevi
 	}
 
 	return respDevs
+}
+
+type tmAdmissionHelper struct {
+	topologyManager topologymanager.Manager
+}
+
+func (h *tmAdmissionHelper) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
+	pod := attrs.Pod
+	err := h.topologyManager.Admit(pod)
+	if err != nil {
+		return admission.AdmissionError(err)
+	}
+	return admission.AdmitPod()
 }
