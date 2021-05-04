@@ -19,6 +19,7 @@ package admission
 import (
 	"fmt"
 
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
@@ -26,6 +27,7 @@ import (
 const (
 	ErrorReasonUnexpected       string = "UnexpectedAdmissionError"
 	ErrorReasonTopologyAffinity string = "TopologyAffinityError"
+	ErrorReasonSMTAlignment     string = "SMTAlignmentError"
 )
 
 func AdmitPod() lifecycle.PodAdmitResult {
@@ -33,6 +35,9 @@ func AdmitPod() lifecycle.PodAdmitResult {
 }
 
 func AdmissionError(err error) lifecycle.PodAdmitResult {
+	if _, ok := err.(cpumanager.SMTAlignmentError); ok {
+		return SMTAlignmentError(err)
+	}
 	if _, ok := err.(topologymanager.TopologyAffinityError); ok {
 		return TopologyAffinityError(err)
 	}
@@ -53,6 +58,14 @@ func TopologyAffinityError(err error) lifecycle.PodAdmitResult {
 	return lifecycle.PodAdmitResult{
 		Message: err.Error(),
 		Reason:  ErrorReasonTopologyAffinity,
+		Admit:   false,
+	}
+}
+
+func SMTAlignmentError(err error) lifecycle.PodAdmitResult {
+	return lifecycle.PodAdmitResult{
+		Message: err.Error(),
+		Reason:  ErrorReasonSMTAlignment,
 		Admit:   false,
 	}
 }
