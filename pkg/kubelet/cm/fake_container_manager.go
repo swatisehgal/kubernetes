@@ -192,7 +192,7 @@ func (cm *FakeContainerManager) GetAllocateResourcesPodAdmitHandler() lifecycle.
 	cm.Lock()
 	defer cm.Unlock()
 	cm.CalledFunctions = append(cm.CalledFunctions, "GetAllocateResourcesPodAdmitHandler")
-	return &tmAdmissionHelper{topologymanager.NewFakeManager()}
+	return topologymanager.NewFakeManager()
 }
 
 func (cm *FakeContainerManager) UpdateAllocatedDevices() {

@@ -754,20 +754,20 @@ func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 		err := m.deviceManager.Allocate(pod, &container)
 		if err != nil {
-			return admission.GetPodAdmissionResult(err)
+			return admission.GetPodAdmitResult(err)
 		}
 
 		if m.cpuManager != nil {
 			err = m.cpuManager.Allocate(pod, &container)
 			if err != nil {
-				return admission.GetPodAdmissionResult(err)
+				return admission.GetPodAdmitResult(err)
 			}
 		}
 
 		if m.memoryManager != nil {
 			err = m.memoryManager.Allocate(pod, &container)
 			if err != nil {
-				return admission.GetPodAdmissionResult(err)
+				return admission.GetPodAdmitResult(err)
 			}
 		}
 	}
