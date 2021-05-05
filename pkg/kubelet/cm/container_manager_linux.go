@@ -731,7 +731,7 @@ func (cm *containerManagerImpl) UpdatePluginResources(node *schedulerframework.N
 
 func (cm *containerManagerImpl) GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler {
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.TopologyManager) {
-		return &tmAdmissionHelper{cm.topologyManager}
+		return cm.topologyManager
 	}
 	// TODO: we need to think about a better way to do this. This will work for
 	// now so long as we have only the cpuManager and deviceManager relying on
@@ -754,20 +754,20 @@ func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 		err := m.deviceManager.Allocate(pod, &container)
 		if err != nil {
-			return admission.UnexpectedAdmissionError(err)
+			return admission.GetPodAdmissionResult(err)
 		}
 
 		if m.cpuManager != nil {
 			err = m.cpuManager.Allocate(pod, &container)
 			if err != nil {
-				return admission.AdmissionError(err)
+				return admission.GetPodAdmissionResult(err)
 			}
 		}
 
 		if m.memoryManager != nil {
 			err = m.memoryManager.Allocate(pod, &container)
 			if err != nil {
-				return admission.UnexpectedAdmissionError(err)
+				return admission.GetPodAdmissionResult(err)
 			}
 		}
 	}

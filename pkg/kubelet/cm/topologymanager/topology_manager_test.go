@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
+	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
 func NewTestBitMask(sockets ...int) bitmask.BitMask {
@@ -182,6 +183,7 @@ func TestAdmit(t *testing.T) {
 
 	tcases := []struct {
 		name     string
+		result   lifecycle.PodAdmitResult
 		qosClass v1.PodQOSClass
 		policy   Policy
 		hp       []HintProvider
@@ -466,18 +468,26 @@ func TestAdmit(t *testing.T) {
 			},
 		}
 
+		podAttr := lifecycle.PodAdmitAttributes{
+			Pod: pod,
+		}
+
 		// Container scope Admit
-		ctnErr := ctnScopeManager.Admit(pod)
-		ctnActual := (ctnErr == nil)
-		if ctnActual != tc.expected {
-			t.Errorf("Error occurred, expected Admit in result to be %v got %v", tc.expected, ctnActual)
+		ctnActual := ctnScopeManager.Admit(&podAttr)
+		if ctnActual.Admit != tc.expected {
+			t.Errorf("Error occurred, expected Admit in result to be %v got %v", tc.expected, ctnActual.Admit)
+		}
+		if !ctnActual.Admit && ctnActual.Reason != ErrorTopologyAffinity {
+			t.Errorf("Error occurred, expected Reason in result to be %v got %v", ErrorTopologyAffinity, ctnActual.Reason)
 		}
 
 		// Pod scope Admit
-		podErr := podScopeManager.Admit(pod)
-		podActual := (podErr == nil)
-		if podActual != tc.expected {
-			t.Errorf("Error occurred, expected Admit in result to be %v got %v", tc.expected, podActual)
+		podActual := podScopeManager.Admit(&podAttr)
+		if podActual.Admit != tc.expected {
+			t.Errorf("Error occurred, expected Admit in result to be %v got %v", tc.expected, podActual.Admit)
+		}
+		if !ctnActual.Admit && ctnActual.Reason != ErrorTopologyAffinity {
+			t.Errorf("Error occurred, expected Reason in result to be %v got %v", ErrorTopologyAffinity, ctnActual.Reason)
 		}
 	}
 }

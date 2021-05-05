@@ -227,16 +227,3 @@ func containerDevicesFromResourceDeviceInstances(devs devicemanager.ResourceDevi
 
 	return respDevs
 }
-
-type tmAdmissionHelper struct {
-	topologyManager topologymanager.Manager
-}
-
-func (h *tmAdmissionHelper) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
-	pod := attrs.Pod
-	err := h.topologyManager.Admit(pod)
-	if err != nil {
-		return admission.AdmissionError(err)
-	}
-	return admission.AdmitPod()
-}

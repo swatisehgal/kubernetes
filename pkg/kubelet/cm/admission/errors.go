@@ -17,55 +17,46 @@ limitations under the License.
 package admission
 
 import (
+	"errors"
 	"fmt"
 
-	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
-	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
 const (
-	ErrorReasonUnexpected       string = "UnexpectedAdmissionError"
-	ErrorReasonTopologyAffinity string = "TopologyAffinityError"
-	ErrorReasonSMTAlignment     string = "SMTAlignmentError"
+	ErrorReasonUnexpected = "UnexpectedAdmissionError"
 )
 
-func AdmitPod() lifecycle.PodAdmitResult {
-	return lifecycle.PodAdmitResult{Admit: true}
+type Error interface {
+	Error() string
+	Type() string
 }
 
-func AdmissionError(err error) lifecycle.PodAdmitResult {
-	if _, ok := err.(cpumanager.SMTAlignmentError); ok {
-		return SMTAlignmentError(err)
-	}
-	if _, ok := err.(topologymanager.TopologyAffinityError); ok {
-		return TopologyAffinityError(err)
-	}
-	// default, no explicit check
-	return UnexpectedAdmissionError(err)
+type unexpectedAdmissionError struct{ Err error }
 
+var _ Error = (*unexpectedAdmissionError)(nil)
+
+func (e *unexpectedAdmissionError) Error() string {
+	return fmt.Sprintf("Allocate failed due to %v, which is unexpected", e.Err)
 }
 
-func UnexpectedAdmissionError(err error) lifecycle.PodAdmitResult {
+func (e *unexpectedAdmissionError) Type() string {
+	return ErrorReasonUnexpected
+}
+
+func GetPodAdmitResult(err error) lifecycle.PodAdmitResult {
+	if err == nil {
+		return lifecycle.PodAdmitResult{Admit: true}
+	}
+
+	var admissionErr Error
+	if !errors.As(err, &admissionErr) {
+		admissionErr = &unexpectedAdmissionError{err}
+	}
+
 	return lifecycle.PodAdmitResult{
-		Message: fmt.Sprintf("Allocate failed due to %v, which is unexpected", err),
-		Reason:  ErrorReasonUnexpected,
-		Admit:   false,
-	}
-}
-
-func TopologyAffinityError(err error) lifecycle.PodAdmitResult {
-	return lifecycle.PodAdmitResult{
-		Message: err.Error(),
-		Reason:  ErrorReasonTopologyAffinity,
-		Admit:   false,
-	}
-}
-
-func SMTAlignmentError(err error) lifecycle.PodAdmitResult {
-	return lifecycle.PodAdmitResult{
-		Message: err.Error(),
-		Reason:  ErrorReasonSMTAlignment,
+		Message: admissionErr.Error(),
+		Reason:  admissionErr.Type(),
 		Admit:   false,
 	}
 }

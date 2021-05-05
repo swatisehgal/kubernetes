@@ -21,6 +21,8 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/kubelet/cm/admission"
+	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
 const (
@@ -35,7 +37,7 @@ type podTopologyHints map[string]map[string]TopologyHint
 // Scope interface for Topology Manager
 type Scope interface {
 	Name() string
-	Admit(pod *v1.Pod) error
+	Admit(pod *v1.Pod) lifecycle.PodAdmitResult
 	// AddHintProvider adds a hint provider to manager to indicate the hint provider
 	// wants to be consoluted with when making topology hints
 	AddHintProvider(h HintProvider)
@@ -118,14 +120,14 @@ func (s *scope) RemoveContainer(containerID string) error {
 	return nil
 }
 
-func (s *scope) admitPolicyNone(pod *v1.Pod) error {
+func (s *scope) admitPolicyNone(pod *v1.Pod) lifecycle.PodAdmitResult {
 	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
 		err := s.allocateAlignedResources(pod, &container)
 		if err != nil {
-			return err
+			return admission.GetPodAdmitResult(err)
 		}
 	}
-	return nil
+	return admission.GetPodAdmitResult(nil)
 }
 
 // It would be better to implement this function in topologymanager instead of scope
@@ -138,10 +140,4 @@ func (s *scope) allocateAlignedResources(pod *v1.Pod, container *v1.Container) e
 		}
 	}
 	return nil
-}
-
-type TopologyAffinityError struct{}
-
-func (e TopologyAffinityError) Error() string {
-	return "Resources cannot be allocated with Topology locality"
 }

@@ -23,6 +23,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
+	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
 const (
@@ -35,12 +36,25 @@ const (
 	// present on a machine and the TopologyManager is enabled, an error will
 	// be returned and the TopologyManager will not be loaded.
 	maxAllowableNUMANodes = 8
+	// ErrorTopologyAffinity represents the type for a TopologyAffinityError
+	ErrorTopologyAffinity = "TopologyAffinityError"
 )
+
+// TopologyAffinityError represents an resource alignment error
+type TopologyAffinityError struct{}
+
+func (e TopologyAffinityError) Error() string {
+	return "Resources cannot be allocated with Topology locality"
+}
+
+func (e TopologyAffinityError) Type() string {
+	return ErrorTopologyAffinity
+}
 
 // Manager interface provides methods for Kubelet to manage pod topology hints
 type Manager interface {
-	// Admission control
-	Admit(pod *v1.Pod) error
+	// PodAdmitHandler is implemented by Manager
+	lifecycle.PodAdmitHandler
 	// AddHintProvider adds a hint provider to manager to indicate the hint provider
 	// wants to be consulted with when making topology hints
 	AddHintProvider(HintProvider)
@@ -182,7 +196,9 @@ func (m *manager) RemoveContainer(containerID string) error {
 	return m.scope.RemoveContainer(containerID)
 }
 
-func (m *manager) Admit(pod *v1.Pod) error {
+func (m *manager) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
 	klog.InfoS("Topology Admit Handler")
+	pod := attrs.Pod
+
 	return m.scope.Admit(pod)
 }

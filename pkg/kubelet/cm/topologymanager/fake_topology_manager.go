@@ -19,6 +19,8 @@ package topologymanager
 import (
 	"k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/kubelet/cm/admission"
+	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 )
 
 type fakeManager struct{}
@@ -48,7 +50,7 @@ func (m *fakeManager) RemoveContainer(containerID string) error {
 	return nil
 }
 
-func (m *fakeManager) Admit(pod *v1.Pod) error {
+func (m *fakeManager) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
 	klog.InfoS("Topology Admit Handler")
-	return nil
+	return admission.GetPodAdmitResult(nil)
 }

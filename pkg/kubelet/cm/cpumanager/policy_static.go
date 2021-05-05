@@ -29,8 +29,26 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 )
 
-// PolicyStatic is the name of the static policy
-const PolicyStatic policyName = "static"
+const (
+	// PolicyStatic is the name of the static policy
+	PolicyStatic policyName = "static"
+	// ErrorSMTAlignment represents the type of an SMTAlignmentError
+	ErrorSMTAlignment = "SMTAlignmentError"
+)
+
+// SMTAlignmentError represents an error due to SMT alignment
+type SMTAlignmentError struct {
+	RequestedCPUs int
+	CpusPerCore   int
+}
+
+func (e SMTAlignmentError) Error() string {
+	return fmt.Sprintf("SMT Alignment Error: requested %d cpus not multiple cpus per core = %d", e.RequestedCPUs, e.CpusPerCore)
+}
+
+func (e SMTAlignmentError) Type() string {
+	return ErrorSMTAlignment
+}
 
 // staticPolicy is a CPU manager policy that does not change CPU
 // assignments for exclusively pinned guaranteed containers after the main
@@ -528,13 +546,4 @@ func (p *staticPolicy) generateCPUTopologyHints(availableCPUs cpuset.CPUSet, reu
 	}
 
 	return hints
-}
-
-type SMTAlignmentError struct {
-	RequestedCPUs int
-	CpusPerCore   int
-}
-
-func (e SMTAlignmentError) Error() string {
-	return fmt.Sprintf("SMT Alignment Error: requested %d cpus not multiple cpus per core = %d", e.RequestedCPUs, e.CpusPerCore)
 }
