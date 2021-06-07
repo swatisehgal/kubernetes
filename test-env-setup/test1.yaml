@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swati-pod
+spec:
+  selector:
+      matchLabels:
+        name: test # Label selector that determines which Pods belong to the DaemonSet
+  template:
+    metadata:
+      labels:
+        name: test # Pod template's label selector
+    spec:
+      # nodeSelector:
+      #   node-role.kubernetes.io/master: ""
+      containers:
+      - name: swati-container
+        image: quay.io/fromani/numalign
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args: [ "while true; do numalign; sleep 100000; done;" ]
+        resources:
+          limits:
+            cpu: 1 
+            memory: 50Mi
+          requests:
+            cpu: 1
+            memory: 50Mi

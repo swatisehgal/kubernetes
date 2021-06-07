@@ -1,0 +1,18 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+- |
+  kind: KubeletConfiguration
+  cpuManagerPolicy: "static"
+  topologyManagerPolicy: "single-numa-node"
+  reservedSystemCPUs: "0"
+  featureGates:
+    CPUManager: true
+    TopologyManager: true
+    KubeletPodResourcesGetAllocatable: true
+  cgroupDriver: "cgroupfs"
+nodes:
+- role: control-plane
+  image: quay.io/swsehgal/kind-latestnode-image:latest
+- role: worker
+  image: quay.io/swsehgal/kind-latestnode-image:latest

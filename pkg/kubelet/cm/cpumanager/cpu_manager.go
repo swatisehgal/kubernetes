@@ -88,6 +88,9 @@ type Manager interface {
 
 	// GetAllocatableCPUs returns the assignable (not allocated) CPUs
 	GetAllocatableCPUs() cpuset.CPUSet
+
+	// IsExclusive returns if the CPUs are exclusively alocated to the pod
+	IsExclusive(podUID, containerName string) bool
 }
 
 type manager struct {
@@ -489,4 +492,17 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 
 func (m *manager) GetCPUs(podUID, containerName string) cpuset.CPUSet {
 	return m.state.GetCPUSetOrDefault(podUID, containerName)
+}
+
+// NOTE: IsExclusive() can be merged into GetCPUs() above so that it returns a
+// boolean value along with cpuset.CPUSet like below but it was kept separate
+// to ensure compatibility promise of the GetCPUs().
+// func (m *manager) GetCPUs(podUID, containerName string) (cpuset.CPUSet, bool){
+// 	if res, ok := m.state.GetCPUSet(podUID, containerName); ok {
+// 		return res, true
+// 	}
+// 	return m.state.GetDefaultCPUSet(), false
+// }
+func (m *manager) IsExclusive(podUID, containerName string) bool {
+	return m.state.GetCPUSetOrDefault(podUID, containerName).Equals(m.state.GetDefaultCPUSet())
 }

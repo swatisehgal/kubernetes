@@ -139,6 +139,10 @@ func (cm *containerManagerStub) GetAllocatableCPUs() []int64 {
 	return nil
 }
 
+func (cm *containerManagerStub) IsExclusive(_, _ string) bool {
+	return false
+}
+
 func NewStubContainerManager() ContainerManager {
 	return &containerManagerStub{shouldResetExtendedResourceCapacity: false}
 }

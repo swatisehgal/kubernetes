@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podresource-pod
+spec:
+  selector:
+      matchLabels:
+        name: test # Label selector that determines which Pods belong to the DaemonSet
+  template:
+    metadata:
+      labels:
+        name: test # Pod template's label selector
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      containers:
+      - name: podresource-container
+        image: quay.io/openshift-kni/debug-tools:4.8-snapshot
+        imagePullPolicy: IfNotPresent
+        command: ["knit"]
+        args: [ "podres", "list" ]
+        # command: ["bash", "-c"]
+        # args: [ "while true; sleep 100000; done;" ]
+        volumeMounts:
+            - name: kubelet-podresources-conf
+              mountPath: /var/lib/kubelet/config.yaml
+            - name: kubelet-podresources-sock
+              mountPath: /var/lib/kubelet/pod-resources/kubelet.sock
+      volumes:
+        - name: kubelet-podresources-conf
+          hostPath:
+            path: /var/lib/kubelet/config.yaml
+        - name: kubelet-podresources-sock
+          hostPath:
+            path: /var/lib/kubelet/pod-resources/kubelet.sock
