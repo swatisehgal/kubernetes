@@ -504,5 +504,8 @@ func (m *manager) GetCPUs(podUID, containerName string) cpuset.CPUSet {
 // 	return m.state.GetDefaultCPUSet(), false
 // }
 func (m *manager) IsExclusive(podUID, containerName string) bool {
-	return m.state.GetCPUSetOrDefault(podUID, containerName).Equals(m.state.GetDefaultCPUSet())
+	if _, ok := m.state.GetCPUSet(podUID, containerName); ok {
+		return true
+	}
+	return false
 }
