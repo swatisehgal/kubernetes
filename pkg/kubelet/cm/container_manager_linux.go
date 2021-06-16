@@ -1087,3 +1087,7 @@ func (cm *containerManagerImpl) ShouldResetExtendedResourceCapacity() bool {
 func (cm *containerManagerImpl) UpdateAllocatedDevices() {
 	cm.deviceManager.UpdateAllocatedDevices()
 }
+
+func (cm *containerManagerImpl) IsExclusive(podUID, containerName string) bool {
+	return cm.cpuManager.IsExclusive(podUID, containerName)
+}

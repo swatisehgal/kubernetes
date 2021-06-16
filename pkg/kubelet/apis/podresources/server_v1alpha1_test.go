@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	podresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
@@ -62,6 +62,10 @@ func (m *mockProvider) GetAllocatableCPUs() []int64 {
 	return args.Get(0).([]int64)
 }
 
+func (m *mockProvider) IsExclusive(podUID, containerName string) bool {
+	args := m.Called(podUID, containerName)
+	return args.Get(0).(bool)
+}
 func TestListPodResourcesV1alpha1(t *testing.T) {
 	podName := "pod-name"
 	podNamespace := "pod-namespace"

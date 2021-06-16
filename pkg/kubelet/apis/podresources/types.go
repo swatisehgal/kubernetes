@@ -17,7 +17,7 @@ limitations under the License.
 package podresources
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
@@ -42,4 +42,6 @@ type CPUsProvider interface {
 	GetCPUs(podUID, containerName string) []int64
 	// GetAllocatableCPUs returns the allocatable (not allocated) CPUs
 	GetAllocatableCPUs() []int64
+	// IsExclusive returns if the CPUs are exclusively alocated to the pod and container
+	IsExclusive(podUID, containerName string) bool
 }

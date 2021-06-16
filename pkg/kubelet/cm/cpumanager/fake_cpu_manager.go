@@ -17,7 +17,7 @@ limitations under the License.
 package cpumanager
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/cm/containermap"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/state"
@@ -77,6 +77,11 @@ func (m *fakeManager) GetCPUs(podUID, containerName string) cpuset.CPUSet {
 func (m *fakeManager) GetAllocatableCPUs() cpuset.CPUSet {
 	klog.InfoS("Get Allocatable CPUs")
 	return cpuset.CPUSet{}
+}
+
+func (m *fakeManager) IsExclusive(podUID, containerName string) bool {
+	klog.InfoS("IsExclusive", "podUID", podUID, "containerName", containerName)
+	return false
 }
 
 // NewFakeManager creates empty/fake cpu manager

@@ -22,7 +22,7 @@ import (
 	"sort"
 	"testing"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -55,6 +55,7 @@ func TestListPodResourcesV1(t *testing.T) {
 		pods             []*v1.Pod
 		devices          []*podresourcesapi.ContainerDevices
 		cpus             []int64
+		isExclusive      bool
 		expectedResponse *podresourcesapi.ListPodResourcesResponse
 	}{
 		{
@@ -62,6 +63,7 @@ func TestListPodResourcesV1(t *testing.T) {
 			pods:             []*v1.Pod{},
 			devices:          []*podresourcesapi.ContainerDevices{},
 			cpus:             []int64{},
+			isExclusive:      false,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{},
 		},
 		{
@@ -82,8 +84,9 @@ func TestListPodResourcesV1(t *testing.T) {
 					},
 				},
 			},
-			devices: []*podresourcesapi.ContainerDevices{},
-			cpus:    []int64{},
+			devices:     []*podresourcesapi.ContainerDevices{},
+			cpus:        []int64{},
+			isExclusive: false,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
 				PodResources: []*podresourcesapi.PodResources{
 					{
@@ -91,8 +94,9 @@ func TestListPodResourcesV1(t *testing.T) {
 						Namespace: podNamespace,
 						Containers: []*podresourcesapi.ContainerResources{
 							{
-								Name:    containerName,
-								Devices: []*podresourcesapi.ContainerDevices{},
+								Name:        containerName,
+								Devices:     []*podresourcesapi.ContainerDevices{},
+								IsExclusive: false,
 							},
 						},
 					},
@@ -117,8 +121,9 @@ func TestListPodResourcesV1(t *testing.T) {
 					},
 				},
 			},
-			devices: devs,
-			cpus:    cpus,
+			devices:     devs,
+			cpus:        cpus,
+			isExclusive: true,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
 				PodResources: []*podresourcesapi.PodResources{
 					{
@@ -126,9 +131,10 @@ func TestListPodResourcesV1(t *testing.T) {
 						Namespace: podNamespace,
 						Containers: []*podresourcesapi.ContainerResources{
 							{
-								Name:    containerName,
-								Devices: devs,
-								CpuIds:  cpus,
+								Name:        containerName,
+								Devices:     devs,
+								CpuIds:      cpus,
+								IsExclusive: true,
 							},
 						},
 					},
@@ -144,6 +150,7 @@ func TestListPodResourcesV1(t *testing.T) {
 			m.On("UpdateAllocatedDevices").Return()
 			m.On("GetAllocatableCPUs").Return(cpuset.CPUSet{})
 			m.On("GetAllocatableDevices").Return(devicemanager.NewResourceDeviceInstances())
+			m.On("IsExclusive", string(podUID), containerName).Return(tc.isExclusive)
 			server := NewV1PodResourcesServer(m, m, m)
 			resp, err := server.List(context.TODO(), &podresourcesapi.ListPodResourcesRequest{})
 			if err != nil {
