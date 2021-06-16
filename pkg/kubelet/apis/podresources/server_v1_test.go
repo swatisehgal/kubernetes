@@ -55,6 +55,7 @@ func TestListPodResourcesV1(t *testing.T) {
 		pods             []*v1.Pod
 		devices          []*podresourcesapi.ContainerDevices
 		cpus             []int64
+		isExclusive      bool
 		expectedResponse *podresourcesapi.ListPodResourcesResponse
 	}{
 		{
@@ -62,6 +63,7 @@ func TestListPodResourcesV1(t *testing.T) {
 			pods:             []*v1.Pod{},
 			devices:          []*podresourcesapi.ContainerDevices{},
 			cpus:             []int64{},
+			isExclusive:      false,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{},
 		},
 		{
@@ -82,8 +84,9 @@ func TestListPodResourcesV1(t *testing.T) {
 					},
 				},
 			},
-			devices: []*podresourcesapi.ContainerDevices{},
-			cpus:    []int64{},
+			devices:     []*podresourcesapi.ContainerDevices{},
+			cpus:        []int64{},
+			isExclusive: false,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
 				PodResources: []*podresourcesapi.PodResources{
 					{
@@ -91,8 +94,9 @@ func TestListPodResourcesV1(t *testing.T) {
 						Namespace: podNamespace,
 						Containers: []*podresourcesapi.ContainerResources{
 							{
-								Name:    containerName,
-								Devices: []*podresourcesapi.ContainerDevices{},
+								Name:        containerName,
+								Devices:     []*podresourcesapi.ContainerDevices{},
+								IsExclusive: false,
 							},
 						},
 					},
@@ -117,8 +121,9 @@ func TestListPodResourcesV1(t *testing.T) {
 					},
 				},
 			},
-			devices: devs,
-			cpus:    cpus,
+			devices:     devs,
+			cpus:        cpus,
+			isExclusive: true,
 			expectedResponse: &podresourcesapi.ListPodResourcesResponse{
 				PodResources: []*podresourcesapi.PodResources{
 					{
@@ -126,9 +131,10 @@ func TestListPodResourcesV1(t *testing.T) {
 						Namespace: podNamespace,
 						Containers: []*podresourcesapi.ContainerResources{
 							{
-								Name:    containerName,
-								Devices: devs,
-								CpuIds:  cpus,
+								Name:        containerName,
+								Devices:     devs,
+								CpuIds:      cpus,
+								IsExclusive: true,
 							},
 						},
 					},
@@ -140,7 +146,7 @@ func TestListPodResourcesV1(t *testing.T) {
 			m := new(mockProvider)
 			m.On("GetPods").Return(tc.pods)
 			m.On("GetDevices", string(podUID), containerName).Return(tc.devices)
-			m.On("GetCPUs", string(podUID), containerName).Return(tc.cpus)
+			m.On("GetCPUs", string(podUID), containerName).Return(tc.cpus, tc.isExclusive)
 			m.On("UpdateAllocatedDevices").Return()
 			m.On("GetAllocatableCPUs").Return(cpuset.CPUSet{})
 			m.On("GetAllocatableDevices").Return(devicemanager.NewResourceDeviceInstances())

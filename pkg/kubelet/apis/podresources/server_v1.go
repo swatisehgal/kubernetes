@@ -61,10 +61,12 @@ func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResource
 		}
 
 		for j, container := range pod.Spec.Containers {
+			cpus, isExclusive := p.cpusProvider.GetCPUs(string(pod.UID), container.Name)
 			pRes.Containers[j] = &v1.ContainerResources{
-				Name:    container.Name,
-				Devices: p.devicesProvider.GetDevices(string(pod.UID), container.Name),
-				CpuIds:  p.cpusProvider.GetCPUs(string(pod.UID), container.Name),
+				Name:        container.Name,
+				Devices:     p.devicesProvider.GetDevices(string(pod.UID), container.Name),
+				CpuIds:      cpus,
+				IsExclusive: isExclusive,
 			}
 		}
 		podResources[i] = &pRes
