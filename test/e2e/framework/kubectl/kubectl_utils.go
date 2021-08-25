@@ -119,7 +119,8 @@ func kubectlLogPod(c clientset.Interface, pod v1.Pod, containerNameSubstr string
 		if strings.Contains(container.Name, containerNameSubstr) {
 			// Contains() matches all strings if substr is empty
 			logs, err := e2epod.GetPodLogs(c, pod.Namespace, pod.Name, container.Name)
-			if err != nil {
+			if err != nil || len(logs) == 0 {
+				logFunc("Get previous")
 				logs, err = e2epod.GetPreviousPodLogs(c, pod.Namespace, pod.Name, container.Name)
 				if err != nil {
 					logFunc("Failed to get logs of pod %v, container %v, err: %v", pod.Name, container.Name, err)

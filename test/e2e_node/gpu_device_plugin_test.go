@@ -18,6 +18,7 @@ package e2enode
 
 import (
 	"context"
+	"encoding/json"
 	"os/exec"
 	"strconv"
 	"time"
@@ -31,6 +32,8 @@ import (
 	e2egpu "k8s.io/kubernetes/test/e2e/framework/gpu"
 	e2emanifest "k8s.io/kubernetes/test/e2e/framework/manifest"
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
+
+	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -87,6 +90,19 @@ var _ = SIGDescribe("NVIDIA GPU Device Plugin [Feature:GPUDevicePlugin][NodeFeat
 
 			ginkgo.By("Waiting for GPUs to become available on the local node")
 			gomega.Eventually(func() bool {
+				// TODO(a.perevalov) remove after if will be clear what hapend in testing environment
+				p1, err := f.ClientSet.CoreV1().Pods(metav1.NamespaceSystem).Get(context.TODO(), devicePluginPod.Name, metav1.GetOptions{})
+				framework.ExpectNoError(err)
+				p1status, err := json.Marshal(p1.Status)
+				framework.ExpectNoError(err)
+				framework.Logf("p1status: \n%v\n", string(p1status))
+				e2ekubectl.LogFailedContainers(f.ClientSet, metav1.NamespaceSystem, framework.Logf)
+
+				//n1, err := f.ClientSet.CoreV1().Nodes().Get(context.TODO(), framework.TestContext.NodeName, metav1.GetOptions{})
+				//framework.ExpectNoError(err)
+				//n1status, err := json.Marshal(n1.Status)
+				//framework.ExpectNoError(err)
+				//framework.Logf("n1status: \n%v\n", string(n1status))
 				return numberOfNVIDIAGPUs(getLocalNode(f)) > 0
 			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrue())
 
