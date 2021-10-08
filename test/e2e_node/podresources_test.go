@@ -214,6 +214,13 @@ func matchPodDescWithResources(expected []podDesc, found podResMap) error {
 				}
 				return fmt.Errorf("pod %q container %q expected %d cpus got %v", podReq.podName, podReq.cntName, exclusiveCpus, cntInfo.CpuIds)
 			}
+			if !isIntegral(podReq.cpuRequest) && len(cntInfo.CpuAffinity) == 0 {
+				return fmt.Errorf("pod %q container %q requested %d expected to be allocated CPUs from shared pool %v", podReq.podName, podReq.cntName, podReq.cpuRequest, cntInfo.CpuAffinity)
+			}
+		} else {
+			if len(cntInfo.CpuAffinity) == 0 {
+				return fmt.Errorf("pod %q container %q requested %d expected to be allocated CPUs from shared pool %v", podReq.podName, podReq.cntName, podReq.cpuRequest, cntInfo.CpuAffinity)
+			}
 		}
 		if podReq.RequiresDevices() {
 			dev := findContainerDeviceByName(cntInfo.GetDevices(), podReq.resourceName)
