@@ -843,6 +843,88 @@ func getOnlineCPUs() (cpuset.CPUSet, error) {
 	return cpuset.Parse(strings.TrimSpace(string(onlineCPUList)))
 }
 
+func configurePodResourcesInKubelet(f *framework.Framework, cleanStateFile bool, reservedSystemCPUs cpuset.CPUSet) (oldCfg *kubeletconfig.KubeletConfiguration) {
+	// we also need CPUManager with static policy to be able to do meaningful testing
+	oldCfg, err := getCurrentKubeletConfig()
+	framework.ExpectNoError(err)
+	newCfg := oldCfg.DeepCopy()
+	if newCfg.FeatureGates == nil {
+		newCfg.FeatureGates = make(map[string]bool)
+	}
+	newCfg.FeatureGates["CPUManager"] = true
+	newCfg.FeatureGates["KubeletPodResourcesGetAllocatable"] = true
+	newCfg.FeatureGates["KubeletPodResourcesGetCPUAffinity"] = true
+
+	// After graduation of the CPU Manager feature to Beta, the CPU Manager
+	// "none" policy is ON by default. But when we set the CPU Manager policy to
+	// "static" in this test and the Kubelet is restarted so that "static"
+	// policy can take effect, there will always be a conflict with the state
+	// checkpointed in the disk (i.e., the policy checkpointed in the disk will
+	// be "none" whereas we are trying to restart Kubelet with "static"
+	// policy). Therefore, we delete the state file so that we can proceed
+	// with the tests.
+	// Only delete the state file at the begin of the tests.
+	if cleanStateFile {
+		deleteStateFile(cpuManagerStateFile)
+	}
+
+	// Set the CPU Manager policy to static.
+	newCfg.CPUManagerPolicy = string(cpumanager.PolicyStatic)
+
+	// Set the CPU Manager reconcile period to 1 second.
+	newCfg.CPUManagerReconcilePeriod = metav1.Duration{Duration: 1 * time.Second}
+
+	if reservedSystemCPUs.Size() > 0 {
+		cpus := reservedSystemCPUs.String()
+		framework.Logf("configurePodResourcesInKubelet: using reservedSystemCPUs=%q", cpus)
+		newCfg.ReservedSystemCPUs = cpus
+	} else {
+		// The Kubelet panics if either kube-reserved or system-reserved is not set
+		// when CPU Manager is enabled. Set cpu in kube-reserved > 0 so that
+		// kubelet doesn't panic.
+		if newCfg.KubeReserved == nil {
+			newCfg.KubeReserved = map[string]string{}
+		}
+
+		if _, ok := newCfg.KubeReserved["cpu"]; !ok {
+			newCfg.KubeReserved["cpu"] = "200m"
+		}
+	}
+	// Update the Kubelet configuration.
+	framework.ExpectNoError(setKubeletConfiguration(f, newCfg))
+
+	// Wait for the Kubelet to be ready.
+	gomega.Eventually(func() bool {
+		nodes, err := e2enode.TotalReady(f.ClientSet)
+		framework.ExpectNoError(err)
+		return nodes == 1
+	}, time.Minute, time.Second).Should(gomega.BeTrue())
+
+	return oldCfg
+}
+
+func enablePodResourcesFeatureGateInKubelet(f *framework.Framework) (oldCfg *kubeletconfig.KubeletConfiguration) {
+	oldCfg, err := getCurrentKubeletConfig()
+	framework.ExpectNoError(err)
+	newCfg := oldCfg.DeepCopy()
+	if newCfg.FeatureGates == nil {
+		newCfg.FeatureGates = make(map[string]bool)
+	}
+	newCfg.FeatureGates["KubeletPodResourcesGetCPUAffinity"] = true
+
+	// Update the Kubelet configuration.
+	framework.ExpectNoError(setKubeletConfiguration(f, newCfg))
+
+	// Wait for the Kubelet to be ready.
+	gomega.Eventually(func() bool {
+		nodes, err := e2enode.TotalReady(f.ClientSet)
+		framework.ExpectNoError(err)
+		return nodes == 1
+	}, time.Minute, time.Second).Should(gomega.BeTrue())
+
+	return oldCfg
+}
+
 func setupKubeVirtDevicePluginOrFail(f *framework.Framework) *v1.Pod {
 	e2enode.WaitForNodeToBeReady(f.ClientSet, framework.TestContext.NodeName, 5*time.Minute)
 
