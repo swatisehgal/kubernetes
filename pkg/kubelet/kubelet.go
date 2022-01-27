@@ -61,6 +61,7 @@ import (
 	internalapi "k8s.io/cri-api/pkg/apis"
 	"k8s.io/klog/v2"
 	pluginwatcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
+	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	statsapi "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletconfiginternal "k8s.io/kubernetes/pkg/kubelet/apis/config"
@@ -857,6 +858,8 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	// since this relies on the rest of the Kubelet having been constructed.
 	klet.setNodeStatusFuncs = klet.defaultNodeStatusFuncs()
 
+	klet.podResourcesServer, klet.podResourcesNotifier = podresources.NewV1PodResourcesServer(klet.podManager, klet.containerManager, klet.containerManager, klet.containerManager)
+
 	return klet, nil
 }
 
@@ -1188,6 +1191,12 @@ type Kubelet struct {
 
 	// Handles node shutdown events for the Node.
 	shutdownManager nodeshutdown.Manager
+
+	// podResourcesServer is a server for PodResource API endpoints
+	podResourcesServer podresourcesapi.PodResourcesListerServer
+
+	// podResourcesNotifier is a notifier for pod lifecycle events (add/update/delete)
+	podResourcesNotifier podresources.PodResourceNotifier
 }
 
 // ListPodStats is delegated to StatsProvider, which implements stats.Provider interface
@@ -2189,6 +2198,7 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 		// not exist in the pod manager, it means that it has been deleted in
 		// the apiserver and no action (other than cleanup) is required.
 		kl.podManager.AddPod(pod)
+		kl.podResourcesNotifier.AddPod(pod)
 
 		if kubetypes.IsMirrorPod(pod) {
 			kl.handleMirrorPod(pod, start)
@@ -2226,6 +2236,7 @@ func (kl *Kubelet) HandlePodUpdates(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
 		kl.podManager.UpdatePod(pod)
+		kl.podResourcesNotifier.UpdatePod(pod)
 		if kubetypes.IsMirrorPod(pod) {
 			kl.handleMirrorPod(pod, start)
 			continue
@@ -2241,6 +2252,7 @@ func (kl *Kubelet) HandlePodRemoves(pods []*v1.Pod) {
 	start := kl.clock.Now()
 	for _, pod := range pods {
 		kl.podManager.DeletePod(pod)
+		kl.podResourcesNotifier.DeletePod(pod)
 		if kubetypes.IsMirrorPod(pod) {
 			kl.handleMirrorPod(pod, start)
 			continue
@@ -2265,6 +2277,7 @@ func (kl *Kubelet) HandlePodReconcile(pods []*v1.Pod) {
 		// Update the pod in pod manager, status manager will do periodically reconcile according
 		// to the pod manager.
 		kl.podManager.UpdatePod(pod)
+		kl.podResourcesNotifier.UpdatePod(pod)
 
 		// Reconcile Pod "Ready" condition if necessary. Trigger sync pod for reconciliation.
 		if status.NeedToReconcilePodReadiness(pod) {
