@@ -45,6 +45,34 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+type WatchPodAction int32
+
+const (
+	WatchPodAction_ADDED   WatchPodAction = 0
+	WatchPodAction_UPDATED WatchPodAction = 1
+	WatchPodAction_DELETED WatchPodAction = 2
+)
+
+var WatchPodAction_name = map[int32]string{
+	0: "ADDED",
+	1: "UPDATED",
+	2: "DELETED",
+}
+
+var WatchPodAction_value = map[string]int32{
+	"ADDED":   0,
+	"UPDATED": 1,
+	"DELETED": 2,
+}
+
+func (x WatchPodAction) String() string {
+	return proto.EnumName(WatchPodAction_name, int32(x))
+}
+
+func (WatchPodAction) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{0}
+}
+
 type AllocatableResourcesRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -144,6 +172,98 @@ func (m *AllocatableResourcesResponse) GetMemory() []*ContainerMemory {
 	return nil
 }
 
+// ListAndWatchPodResourcesRequest is the request made to the Watch PodResourcesLister service
+type ListAndWatchPodResourcesRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListAndWatchPodResourcesRequest) Reset()      { *m = ListAndWatchPodResourcesRequest{} }
+func (*ListAndWatchPodResourcesRequest) ProtoMessage() {}
+func (*ListAndWatchPodResourcesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{2}
+}
+func (m *ListAndWatchPodResourcesRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ListAndWatchPodResourcesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ListAndWatchPodResourcesRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ListAndWatchPodResourcesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListAndWatchPodResourcesRequest.Merge(m, src)
+}
+func (m *ListAndWatchPodResourcesRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ListAndWatchPodResourcesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListAndWatchPodResourcesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListAndWatchPodResourcesRequest proto.InternalMessageInfo
+
+// ListAndWatchPodResourcesResponse is the response returned by ListAndWatch function
+type ListAndWatchPodResourcesResponse struct {
+	Action               WatchPodAction  `protobuf:"varint,1,opt,name=action,proto3,enum=v1.WatchPodAction" json:"action,omitempty"`
+	PodResources         []*PodResources `protobuf:"bytes,2,rep,name=pod_resources,json=podResources,proto3" json:"pod_resources,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
+}
+
+func (m *ListAndWatchPodResourcesResponse) Reset()      { *m = ListAndWatchPodResourcesResponse{} }
+func (*ListAndWatchPodResourcesResponse) ProtoMessage() {}
+func (*ListAndWatchPodResourcesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{3}
+}
+func (m *ListAndWatchPodResourcesResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ListAndWatchPodResourcesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ListAndWatchPodResourcesResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ListAndWatchPodResourcesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListAndWatchPodResourcesResponse.Merge(m, src)
+}
+func (m *ListAndWatchPodResourcesResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ListAndWatchPodResourcesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListAndWatchPodResourcesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListAndWatchPodResourcesResponse proto.InternalMessageInfo
+
+func (m *ListAndWatchPodResourcesResponse) GetAction() WatchPodAction {
+	if m != nil {
+		return m.Action
+	}
+	return WatchPodAction_ADDED
+}
+
+func (m *ListAndWatchPodResourcesResponse) GetPodResources() []*PodResources {
+	if m != nil {
+		return m.PodResources
+	}
+	return nil
+}
+
 // ListPodResourcesRequest is the request made to the PodResourcesLister service
 type ListPodResourcesRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -153,7 +273,7 @@ type ListPodResourcesRequest struct {
 func (m *ListPodResourcesRequest) Reset()      { *m = ListPodResourcesRequest{} }
 func (*ListPodResourcesRequest) ProtoMessage() {}
 func (*ListPodResourcesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{2}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{4}
 }
 func (m *ListPodResourcesRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -192,7 +312,7 @@ type ListPodResourcesResponse struct {
 func (m *ListPodResourcesResponse) Reset()      { *m = ListPodResourcesResponse{} }
 func (*ListPodResourcesResponse) ProtoMessage() {}
 func (*ListPodResourcesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{3}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{5}
 }
 func (m *ListPodResourcesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -233,6 +353,7 @@ type PodResources struct {
 	Name                 string                `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Namespace            string                `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	Containers           []*ContainerResources `protobuf:"bytes,3,rep,name=containers,proto3" json:"containers,omitempty"`
+	ResourceVersion      int64                 `protobuf:"varint,4,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
 }
@@ -240,7 +361,7 @@ type PodResources struct {
 func (m *PodResources) Reset()      { *m = PodResources{} }
 func (*PodResources) ProtoMessage() {}
 func (*PodResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{4}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{6}
 }
 func (m *PodResources) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -290,6 +411,13 @@ func (m *PodResources) GetContainers() []*ContainerResources {
 	return nil
 }
 
+func (m *PodResources) GetResourceVersion() int64 {
+	if m != nil {
+		return m.ResourceVersion
+	}
+	return 0
+}
+
 // ContainerResources contains information about the resources assigned to a container
 type ContainerResources struct {
 	Name                 string              `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -303,7 +431,7 @@ type ContainerResources struct {
 func (m *ContainerResources) Reset()      { *m = ContainerResources{} }
 func (*ContainerResources) ProtoMessage() {}
 func (*ContainerResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{5}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{7}
 }
 func (m *ContainerResources) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -372,7 +500,7 @@ type ContainerMemory struct {
 func (m *ContainerMemory) Reset()      { *m = ContainerMemory{} }
 func (*ContainerMemory) ProtoMessage() {}
 func (*ContainerMemory) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{6}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
 }
 func (m *ContainerMemory) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -434,7 +562,7 @@ type ContainerDevices struct {
 func (m *ContainerDevices) Reset()      { *m = ContainerDevices{} }
 func (*ContainerDevices) ProtoMessage() {}
 func (*ContainerDevices) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{7}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
 }
 func (m *ContainerDevices) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -494,7 +622,7 @@ type TopologyInfo struct {
 func (m *TopologyInfo) Reset()      { *m = TopologyInfo{} }
 func (*TopologyInfo) ProtoMessage() {}
 func (*TopologyInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{10}
 }
 func (m *TopologyInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -540,7 +668,7 @@ type NUMANode struct {
 func (m *NUMANode) Reset()      { *m = NUMANode{} }
 func (*NUMANode) ProtoMessage() {}
 func (*NUMANode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{11}
 }
 func (m *NUMANode) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -577,8 +705,11 @@ func (m *NUMANode) GetID() int64 {
 }
 
 func init() {
+	proto.RegisterEnum("v1.WatchPodAction", WatchPodAction_name, WatchPodAction_value)
 	proto.RegisterType((*AllocatableResourcesRequest)(nil), "v1.AllocatableResourcesRequest")
 	proto.RegisterType((*AllocatableResourcesResponse)(nil), "v1.AllocatableResourcesResponse")
+	proto.RegisterType((*ListAndWatchPodResourcesRequest)(nil), "v1.ListAndWatchPodResourcesRequest")
+	proto.RegisterType((*ListAndWatchPodResourcesResponse)(nil), "v1.ListAndWatchPodResourcesResponse")
 	proto.RegisterType((*ListPodResourcesRequest)(nil), "v1.ListPodResourcesRequest")
 	proto.RegisterType((*ListPodResourcesResponse)(nil), "v1.ListPodResourcesResponse")
 	proto.RegisterType((*PodResources)(nil), "v1.PodResources")
@@ -592,41 +723,49 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 539 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0xed, 0xda, 0x21, 0x6d, 0xa6, 0x29, 0x54, 0x0b, 0x22, 0x26, 0x4d, 0xdd, 0xc8, 0x5c, 0x22,
-	0x01, 0xae, 0x1a, 0x04, 0xf7, 0xd2, 0x48, 0x28, 0x12, 0x8d, 0x60, 0x55, 0xae, 0x44, 0x8e, 0xbd,
-	0x0d, 0x96, 0x12, 0xef, 0xe2, 0x5d, 0x47, 0x84, 0x13, 0x07, 0x3e, 0x80, 0x03, 0x67, 0xfe, 0x83,
-	0x3f, 0xe8, 0x91, 0x23, 0x47, 0x1a, 0x7e, 0x04, 0xed, 0xda, 0x4e, 0x9d, 0x26, 0x01, 0xf5, 0xe4,
-	0xd9, 0x79, 0x33, 0xb3, 0x6f, 0xe6, 0x8d, 0x17, 0x2a, 0x1e, 0x0f, 0x5d, 0x1e, 0x33, 0xc9, 0xb0,
-	0x31, 0x39, 0xaa, 0x3f, 0x19, 0x86, 0xf2, 0x7d, 0x32, 0x70, 0x7d, 0x36, 0x3e, 0x1c, 0xb2, 0x21,
-	0x3b, 0xd4, 0xd0, 0x20, 0x39, 0xd7, 0x27, 0x7d, 0xd0, 0x56, 0x9a, 0xe2, 0xec, 0xc3, 0xde, 0xf1,
-	0x68, 0xc4, 0x7c, 0x4f, 0x7a, 0x83, 0x11, 0x25, 0x54, 0xb0, 0x24, 0xf6, 0xa9, 0x20, 0xf4, 0x43,
-	0x42, 0x85, 0x74, 0xbe, 0x21, 0x68, 0xac, 0xc6, 0x05, 0x67, 0x91, 0xa0, 0xd8, 0x85, 0xcd, 0x80,
-	0x4e, 0x42, 0x9f, 0x0a, 0x0b, 0x35, 0xcd, 0xd6, 0x76, 0xfb, 0x9e, 0x3b, 0x39, 0x72, 0x4f, 0x58,
-	0x24, 0xbd, 0x30, 0xa2, 0x71, 0x27, 0xc5, 0x48, 0x1e, 0x84, 0x6b, 0xb0, 0xe9, 0xf3, 0xa4, 0x1f,
-	0x06, 0xc2, 0x32, 0x9a, 0x66, 0xcb, 0x24, 0x65, 0x9f, 0x27, 0xdd, 0x40, 0xe0, 0x47, 0x50, 0x1e,
-	0xd3, 0x31, 0x8b, 0xa7, 0x96, 0xa9, 0xeb, 0xdc, 0x5d, 0xa8, 0x73, 0xaa, 0x21, 0x92, 0x85, 0x38,
-	0x0f, 0xa0, 0xf6, 0x2a, 0x14, 0xf2, 0x35, 0x0b, 0x96, 0x18, 0xbf, 0x01, 0x6b, 0x19, 0xca, 0xc8,
-	0x3e, 0x83, 0x1d, 0xce, 0x82, 0x7e, 0x9c, 0x03, 0x19, 0xe5, 0x5d, 0x75, 0xd5, 0x42, 0x42, 0x95,
-	0x17, 0x4e, 0xce, 0x47, 0xa8, 0x16, 0x51, 0x8c, 0xa1, 0x14, 0x79, 0x63, 0x6a, 0xa1, 0x26, 0x6a,
-	0x55, 0x88, 0xb6, 0x71, 0x03, 0x2a, 0xea, 0x2b, 0xb8, 0xe7, 0x53, 0xcb, 0xd0, 0xc0, 0x95, 0x03,
-	0x3f, 0x07, 0xf0, 0xf3, 0x56, 0x44, 0xd6, 0xe0, 0xfd, 0x85, 0x06, 0xaf, 0xee, 0x2e, 0x44, 0x3a,
-	0xdf, 0x11, 0xe0, 0xe5, 0x90, 0x95, 0x04, 0x0a, 0x42, 0x18, 0x37, 0x14, 0xc2, 0x5c, 0x23, 0x44,
-	0xe9, 0xff, 0x42, 0x48, 0xb8, 0x73, 0x0d, 0xc2, 0x07, 0xb0, 0x9d, 0x82, 0x7d, 0x39, 0xe5, 0x39,
-	0x47, 0x48, 0x5d, 0x67, 0x53, 0x4e, 0x15, 0x7b, 0x11, 0x7e, 0x4a, 0xa7, 0x54, 0x22, 0xda, 0xc6,
-	0x8f, 0x61, 0x4b, 0x32, 0xce, 0x46, 0x6c, 0xa8, 0xf4, 0x47, 0xb9, 0x28, 0x67, 0x99, 0xaf, 0x1b,
-	0x9d, 0x33, 0x32, 0x8f, 0x70, 0xbe, 0x20, 0xd8, 0xbd, 0xde, 0x19, 0x7e, 0x08, 0x3b, 0xb9, 0xb0,
-	0xfd, 0xc2, 0x74, 0xaa, 0xb9, 0xb3, 0xa7, 0xa6, 0xb4, 0x0f, 0x90, 0x0e, 0x60, 0xbe, 0x81, 0x15,
-	0x52, 0x49, 0x3d, 0xaa, 0xf7, 0x9b, 0xd1, 0x68, 0x43, 0xb5, 0x88, 0x60, 0x07, 0x6e, 0x45, 0x2c,
-	0x98, 0xaf, 0x55, 0x55, 0xa5, 0xf6, 0xde, 0x9e, 0x1e, 0xf7, 0x58, 0x40, 0x49, 0x0a, 0x39, 0x75,
-	0xd8, 0xca, 0x5d, 0xf8, 0x36, 0x18, 0xdd, 0x8e, 0xa6, 0x69, 0x12, 0xa3, 0xdb, 0x69, 0xff, 0x40,
-	0x80, 0x8b, 0x8b, 0xa6, 0xf6, 0x98, 0xc6, 0xf8, 0x04, 0x4a, 0xca, 0xc2, 0x7b, 0xaa, 0xde, 0x9a,
-	0xb5, 0xaf, 0x37, 0x56, 0x83, 0xe9, 0xe2, 0x3b, 0x1b, 0xf8, 0x1d, 0xd4, 0x5e, 0x52, 0xb9, 0xea,
-	0x57, 0xc6, 0x07, 0x2a, 0xf5, 0x1f, 0x8f, 0x40, 0xbd, 0xb9, 0x3e, 0x20, 0xaf, 0xff, 0xa2, 0x71,
-	0x71, 0x69, 0xa3, 0x5f, 0x97, 0xf6, 0xc6, 0xe7, 0x99, 0x8d, 0x2e, 0x66, 0x36, 0xfa, 0x39, 0xb3,
-	0xd1, 0xef, 0x99, 0x8d, 0xbe, 0xfe, 0xb1, 0x37, 0x06, 0x65, 0xfd, 0xd8, 0x3c, 0xfd, 0x1b, 0x00,
-	0x00, 0xff, 0xff, 0x43, 0x46, 0x5d, 0x7f, 0xac, 0x04, 0x00, 0x00,
+	// 669 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0x4f, 0x6f, 0xd3, 0x4e,
+	0x10, 0xcd, 0xda, 0x69, 0xda, 0x4c, 0xd2, 0x36, 0xda, 0xdf, 0x4f, 0x34, 0xa4, 0xa9, 0x1b, 0x5c,
+	0x0e, 0xa1, 0x40, 0x4a, 0x83, 0xca, 0x3d, 0xd4, 0x11, 0x8a, 0xd4, 0x56, 0x65, 0xd5, 0xc2, 0x09,
+	0x22, 0xc7, 0xde, 0xa6, 0x96, 0x12, 0xaf, 0xf1, 0x3a, 0x91, 0xca, 0x89, 0x03, 0xdc, 0x39, 0x70,
+	0xe0, 0xc4, 0x85, 0x2f, 0xd3, 0x23, 0x47, 0x8e, 0x34, 0x7c, 0x11, 0xb4, 0xeb, 0x38, 0x75, 0x9a,
+	0x3f, 0xd0, 0x93, 0x77, 0xe6, 0xbd, 0x9d, 0x79, 0x9e, 0x9d, 0x19, 0x48, 0x9b, 0x9e, 0x53, 0xf1,
+	0x7c, 0x16, 0x30, 0xac, 0xf4, 0x77, 0x0b, 0x8f, 0xdb, 0x4e, 0x70, 0xde, 0x6b, 0x55, 0x2c, 0xd6,
+	0xdd, 0x69, 0xb3, 0x36, 0xdb, 0x91, 0x50, 0xab, 0x77, 0x26, 0x2d, 0x69, 0xc8, 0x53, 0x78, 0x45,
+	0xdf, 0x80, 0xf5, 0x5a, 0xa7, 0xc3, 0x2c, 0x33, 0x30, 0x5b, 0x1d, 0x4a, 0x28, 0x67, 0x3d, 0xdf,
+	0xa2, 0x9c, 0xd0, 0x77, 0x3d, 0xca, 0x03, 0xfd, 0x0b, 0x82, 0xe2, 0x74, 0x9c, 0x7b, 0xcc, 0xe5,
+	0x14, 0x57, 0x60, 0xd1, 0xa6, 0x7d, 0xc7, 0xa2, 0x3c, 0x8f, 0x4a, 0x6a, 0x39, 0x53, 0xfd, 0xbf,
+	0xd2, 0xdf, 0xad, 0xec, 0x33, 0x37, 0x30, 0x1d, 0x97, 0xfa, 0x46, 0x88, 0x91, 0x88, 0x84, 0xd7,
+	0x60, 0xd1, 0xf2, 0x7a, 0x4d, 0xc7, 0xe6, 0x79, 0xa5, 0xa4, 0x96, 0x55, 0x92, 0xb2, 0xbc, 0x5e,
+	0xc3, 0xe6, 0xf8, 0x21, 0xa4, 0xba, 0xb4, 0xcb, 0xfc, 0x8b, 0xbc, 0x2a, 0xe3, 0xfc, 0x37, 0x16,
+	0xe7, 0x50, 0x42, 0x64, 0x48, 0xd1, 0xef, 0xc1, 0xe6, 0x81, 0xc3, 0x83, 0x9a, 0x6b, 0xbf, 0x36,
+	0x03, 0xeb, 0xfc, 0x98, 0xd9, 0x13, 0xca, 0x3f, 0x21, 0x28, 0xcd, 0xe6, 0x0c, 0xd5, 0x6f, 0x43,
+	0xca, 0xb4, 0x02, 0x87, 0xb9, 0x79, 0x54, 0x42, 0xe5, 0x95, 0x2a, 0x16, 0x49, 0x23, 0x7a, 0x4d,
+	0x22, 0x64, 0xc8, 0xc0, 0x7b, 0xb0, 0xec, 0x31, 0xbb, 0xe9, 0x47, 0x41, 0xa4, 0xfe, 0x4c, 0x35,
+	0x27, 0xae, 0x8c, 0x05, 0xcf, 0x7a, 0x31, 0x4b, 0xbf, 0x0b, 0x6b, 0x42, 0xc6, 0x34, 0x89, 0x2f,
+	0x21, 0x3f, 0x09, 0x0d, 0x95, 0x4d, 0x64, 0x43, 0xff, 0x94, 0xed, 0x3b, 0x82, 0x6c, 0x1c, 0xc6,
+	0x18, 0x92, 0xae, 0xd9, 0xa5, 0xf2, 0xff, 0xd2, 0x44, 0x9e, 0x71, 0x11, 0xd2, 0xe2, 0xcb, 0x3d,
+	0xd3, 0xa2, 0x79, 0x45, 0x02, 0xd7, 0x0e, 0xfc, 0x0c, 0xc0, 0x8a, 0xca, 0xce, 0x87, 0x8f, 0x71,
+	0x67, 0xec, 0x31, 0xae, 0x93, 0xc7, 0x98, 0xf8, 0x01, 0xe4, 0x22, 0xb5, 0xcd, 0x3e, 0xf5, 0xb9,
+	0xa8, 0x6a, 0xb2, 0x84, 0xca, 0x2a, 0x59, 0x8d, 0xfc, 0xaf, 0x42, 0xb7, 0xfe, 0x0d, 0x01, 0x9e,
+	0x8c, 0x36, 0x55, 0x6b, 0xac, 0xbf, 0x94, 0x5b, 0xf6, 0x97, 0x3a, 0xa3, 0xbf, 0x92, 0x7f, 0xef,
+	0xaf, 0x00, 0x56, 0x6f, 0x40, 0x78, 0x13, 0x32, 0x21, 0xd8, 0x0c, 0x2e, 0xbc, 0x48, 0x23, 0x84,
+	0xae, 0x93, 0x0b, 0x8f, 0x0a, 0xf5, 0xdc, 0x79, 0x1f, 0x16, 0x34, 0x49, 0xe4, 0x19, 0x3f, 0x82,
+	0xa5, 0x80, 0x79, 0xac, 0xc3, 0xda, 0xa2, 0xad, 0x51, 0xf4, 0x80, 0x27, 0x43, 0x5f, 0xc3, 0x3d,
+	0x63, 0x64, 0xc4, 0xd0, 0x3f, 0x22, 0xc8, 0xdd, 0xfc, 0x33, 0xbc, 0x05, 0xcb, 0xa3, 0xb2, 0xc6,
+	0xaa, 0x93, 0x8d, 0x9c, 0x47, 0xa2, 0x4a, 0x1b, 0x00, 0x61, 0x01, 0x46, 0x83, 0x95, 0x26, 0xe9,
+	0xd0, 0x23, 0xfe, 0xfd, 0x76, 0x32, 0xaa, 0x90, 0x8d, 0x23, 0x58, 0x87, 0x05, 0x97, 0xd9, 0xa3,
+	0x16, 0xcc, 0x8a, 0xab, 0x47, 0xa7, 0x87, 0xb5, 0x23, 0x66, 0x53, 0x12, 0x42, 0x7a, 0x01, 0x96,
+	0x22, 0x17, 0x5e, 0x01, 0xa5, 0x61, 0x48, 0x99, 0x2a, 0x51, 0x1a, 0xc6, 0xf6, 0x1e, 0xac, 0x8c,
+	0x8f, 0x14, 0x4e, 0xc3, 0x42, 0xcd, 0x30, 0xea, 0x46, 0x2e, 0x81, 0x33, 0xb0, 0x78, 0x7a, 0x6c,
+	0xd4, 0x4e, 0xea, 0x46, 0x0e, 0x09, 0xc3, 0xa8, 0x1f, 0xd4, 0x85, 0xa1, 0x54, 0xbf, 0x2a, 0x80,
+	0xe3, 0xad, 0x2c, 0x46, 0x85, 0xfa, 0x78, 0x1f, 0x92, 0xe2, 0x84, 0xd7, 0x85, 0x8c, 0x19, 0x93,
+	0x55, 0x28, 0x4e, 0x07, 0xc3, 0xd9, 0xd2, 0x13, 0xf8, 0x2d, 0xac, 0xbd, 0xa0, 0xc1, 0xb4, 0xc5,
+	0x86, 0x37, 0xc5, 0xd5, 0x39, 0x2b, 0xb1, 0x50, 0x9a, 0x4d, 0x18, 0xc5, 0x7f, 0x03, 0xd9, 0xf8,
+	0xee, 0xc1, 0x5b, 0x91, 0x9e, 0x39, 0x1b, 0xab, 0x70, 0x7f, 0x3e, 0x29, 0x0a, 0xfe, 0x04, 0x3d,
+	0x2f, 0x5e, 0x5e, 0x69, 0xe8, 0xe7, 0x95, 0x96, 0xf8, 0x30, 0xd0, 0xd0, 0xe5, 0x40, 0x43, 0x3f,
+	0x06, 0x1a, 0xfa, 0x35, 0xd0, 0xd0, 0xe7, 0xdf, 0x5a, 0xa2, 0x95, 0x92, 0x9b, 0xfd, 0xe9, 0x9f,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0xb2, 0xe7, 0xca, 0x66, 0x19, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -643,6 +782,7 @@ const _ = grpc.SupportPackageIsVersion4
 type PodResourcesListerClient interface {
 	List(ctx context.Context, in *ListPodResourcesRequest, opts ...grpc.CallOption) (*ListPodResourcesResponse, error)
 	GetAllocatableResources(ctx context.Context, in *AllocatableResourcesRequest, opts ...grpc.CallOption) (*AllocatableResourcesResponse, error)
+	ListAndWatch(ctx context.Context, in *ListAndWatchPodResourcesRequest, opts ...grpc.CallOption) (PodResourcesLister_ListAndWatchClient, error)
 }
 
 type podResourcesListerClient struct {
@@ -671,10 +811,43 @@ func (c *podResourcesListerClient) GetAllocatableResources(ctx context.Context, 
 	return out, nil
 }
 
+func (c *podResourcesListerClient) ListAndWatch(ctx context.Context, in *ListAndWatchPodResourcesRequest, opts ...grpc.CallOption) (PodResourcesLister_ListAndWatchClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_PodResourcesLister_serviceDesc.Streams[0], "/v1.PodResourcesLister/ListAndWatch", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &podResourcesListerListAndWatchClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type PodResourcesLister_ListAndWatchClient interface {
+	Recv() (*ListAndWatchPodResourcesResponse, error)
+	grpc.ClientStream
+}
+
+type podResourcesListerListAndWatchClient struct {
+	grpc.ClientStream
+}
+
+func (x *podResourcesListerListAndWatchClient) Recv() (*ListAndWatchPodResourcesResponse, error) {
+	m := new(ListAndWatchPodResourcesResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // PodResourcesListerServer is the server API for PodResourcesLister service.
 type PodResourcesListerServer interface {
 	List(context.Context, *ListPodResourcesRequest) (*ListPodResourcesResponse, error)
 	GetAllocatableResources(context.Context, *AllocatableResourcesRequest) (*AllocatableResourcesResponse, error)
+	ListAndWatch(*ListAndWatchPodResourcesRequest, PodResourcesLister_ListAndWatchServer) error
 }
 
 // UnimplementedPodResourcesListerServer can be embedded to have forward compatible implementations.
@@ -686,6 +859,9 @@ func (*UnimplementedPodResourcesListerServer) List(ctx context.Context, req *Lis
 }
 func (*UnimplementedPodResourcesListerServer) GetAllocatableResources(ctx context.Context, req *AllocatableResourcesRequest) (*AllocatableResourcesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllocatableResources not implemented")
+}
+func (*UnimplementedPodResourcesListerServer) ListAndWatch(req *ListAndWatchPodResourcesRequest, srv PodResourcesLister_ListAndWatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListAndWatch not implemented")
 }
 
 func RegisterPodResourcesListerServer(s *grpc.Server, srv PodResourcesListerServer) {
@@ -728,6 +904,27 @@ func _PodResourcesLister_GetAllocatableResources_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PodResourcesLister_ListAndWatch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListAndWatchPodResourcesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(PodResourcesListerServer).ListAndWatch(m, &podResourcesListerListAndWatchServer{stream})
+}
+
+type PodResourcesLister_ListAndWatchServer interface {
+	Send(*ListAndWatchPodResourcesResponse) error
+	grpc.ServerStream
+}
+
+type podResourcesListerListAndWatchServer struct {
+	grpc.ServerStream
+}
+
+func (x *podResourcesListerListAndWatchServer) Send(m *ListAndWatchPodResourcesResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _PodResourcesLister_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "v1.PodResourcesLister",
 	HandlerType: (*PodResourcesListerServer)(nil),
@@ -741,7 +938,13 @@ var _PodResourcesLister_serviceDesc = grpc.ServiceDesc{
 			Handler:    _PodResourcesLister_GetAllocatableResources_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ListAndWatch",
+			Handler:       _PodResourcesLister_ListAndWatch_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "api.proto",
 }
 
@@ -838,6 +1041,71 @@ func (m *AllocatableResourcesResponse) MarshalToSizedBuffer(dAtA []byte) (int, e
 	return len(dAtA) - i, nil
 }
 
+func (m *ListAndWatchPodResourcesRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListAndWatchPodResourcesRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ListAndWatchPodResourcesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *ListAndWatchPodResourcesResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListAndWatchPodResourcesResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ListAndWatchPodResourcesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.PodResources) > 0 {
+		for iNdEx := len(m.PodResources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.PodResources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApi(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.Action != 0 {
+		i = encodeVarintApi(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *ListPodResourcesRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -918,6 +1186,11 @@ func (m *PodResources) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.ResourceVersion != 0 {
+		i = encodeVarintApi(dAtA, i, uint64(m.ResourceVersion))
+		i--
+		dAtA[i] = 0x20
+	}
 	if len(m.Containers) > 0 {
 		for iNdEx := len(m.Containers) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -1237,6 +1510,33 @@ func (m *AllocatableResourcesResponse) Size() (n int) {
 	return n
 }
 
+func (m *ListAndWatchPodResourcesRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *ListAndWatchPodResourcesResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Action != 0 {
+		n += 1 + sovApi(uint64(m.Action))
+	}
+	if len(m.PodResources) > 0 {
+		for _, e := range m.PodResources {
+			l = e.Size()
+			n += 1 + l + sovApi(uint64(l))
+		}
+	}
+	return n
+}
+
 func (m *ListPodResourcesRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -1280,6 +1580,9 @@ func (m *PodResources) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovApi(uint64(l))
 		}
+	}
+	if m.ResourceVersion != 0 {
+		n += 1 + sovApi(uint64(m.ResourceVersion))
 	}
 	return n
 }
@@ -1423,6 +1726,31 @@ func (this *AllocatableResourcesResponse) String() string {
 	}, "")
 	return s
 }
+func (this *ListAndWatchPodResourcesRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListAndWatchPodResourcesRequest{`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListAndWatchPodResourcesResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForPodResources := "[]*PodResources{"
+	for _, f := range this.PodResources {
+		repeatedStringForPodResources += strings.Replace(f.String(), "PodResources", "PodResources", 1) + ","
+	}
+	repeatedStringForPodResources += "}"
+	s := strings.Join([]string{`&ListAndWatchPodResourcesResponse{`,
+		`Action:` + fmt.Sprintf("%v", this.Action) + `,`,
+		`PodResources:` + repeatedStringForPodResources + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *ListPodResourcesRequest) String() string {
 	if this == nil {
 		return "nil"
@@ -1460,6 +1788,7 @@ func (this *PodResources) String() string {
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
 		`Containers:` + repeatedStringForContainers + `,`,
+		`ResourceVersion:` + fmt.Sprintf("%v", this.ResourceVersion) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1788,6 +2117,159 @@ func (m *AllocatableResourcesResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *ListAndWatchPodResourcesRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListAndWatchPodResourcesRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListAndWatchPodResourcesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListAndWatchPodResourcesResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListAndWatchPodResourcesResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListAndWatchPodResourcesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Action", wireType)
+			}
+			m.Action = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Action |= WatchPodAction(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PodResources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApi
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PodResources = append(m.PodResources, &PodResources{})
+			if err := m.PodResources[len(m.PodResources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *ListPodResourcesRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2049,6 +2531,25 @@ func (m *PodResources) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ResourceVersion", wireType)
+			}
+			m.ResourceVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ResourceVersion |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApi(dAtA[iNdEx:])
