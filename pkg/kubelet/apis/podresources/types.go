@@ -51,3 +51,9 @@ type MemoryProvider interface {
 	// GetAllocatableMemory returns the allocatable memory from the node
 	GetAllocatableMemory() []*podresourcesapi.ContainerMemory
 }
+
+type PodNotifier interface {
+	AddPod(pod *v1.Pod)
+	UpdatePod(pod *v1.Pod)
+	DeletePod(pod *v1.Pod)
+}
