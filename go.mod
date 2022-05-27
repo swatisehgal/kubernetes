@@ -121,6 +121,7 @@ require (
 	k8s.io/legacy-cloud-providers v0.0.0
 	k8s.io/metrics v0.0.0
 	k8s.io/mount-utils v0.0.0
+	k8s.io/noderesourcetopology-api v0.0.0
 	k8s.io/pod-security-admission v0.0.0
 	k8s.io/sample-apiserver v0.0.0
 	k8s.io/system-validators v1.7.0
@@ -592,6 +593,7 @@ replace (
 	k8s.io/legacy-cloud-providers => ./staging/src/k8s.io/legacy-cloud-providers
 	k8s.io/metrics => ./staging/src/k8s.io/metrics
 	k8s.io/mount-utils => ./staging/src/k8s.io/mount-utils
+	k8s.io/noderesourcetopology-api => ./staging/src/k8s.io/noderesourcetopology-api
 	k8s.io/pod-security-admission => ./staging/src/k8s.io/pod-security-admission
 	k8s.io/sample-apiserver => ./staging/src/k8s.io/sample-apiserver
 	k8s.io/sample-cli-plugin => ./staging/src/k8s.io/sample-cli-plugin
