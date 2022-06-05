@@ -24,7 +24,7 @@ import (
 
 	"k8s.io/klog/v2"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
-	plugin "k8s.io/kubernetes/pkg/kubelet/cm/devicemanager/plugin/v1beta1"
+	plugin "k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/devicemanager/plugin/v1beta1"
 )
 
 const (

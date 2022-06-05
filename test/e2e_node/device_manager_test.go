@@ -31,7 +31,7 @@ import (
 	kubeletpodresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
-	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager/checkpoint"
+	"k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/devicemanager/checkpoint"
 	"k8s.io/kubernetes/pkg/kubelet/util"
 	admissionapi "k8s.io/pod-security-admission/api"
 

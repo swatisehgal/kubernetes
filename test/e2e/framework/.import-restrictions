@@ -73,15 +73,15 @@ rules:
       - k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors
       - k8s.io/kubernetes/pkg/kubelet/cloudresource
       - k8s.io/kubernetes/pkg/kubelet/cm
-      - k8s.io/kubernetes/pkg/kubelet/cm/cpumanager
-      - k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/containermap
-      - k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/state
-      - k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/cpumanager
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/cpumanager/containermap
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/cpumanager/state
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/cpumanager/topology
       - k8s.io/kubernetes/pkg/kubelet/cm/cpuset
-      - k8s.io/kubernetes/pkg/kubelet/cm/devicemanager
-      - k8s.io/kubernetes/pkg/kubelet/cm/devicemanager/checkpoint
-      - k8s.io/kubernetes/pkg/kubelet/cm/topologymanager
-      - k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/devicemanager
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/devicemanager/checkpoint
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/topologymanager
+      - k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/topologymanager/bitmask
       - k8s.io/kubernetes/pkg/kubelet/cm/util
       - k8s.io/kubernetes/pkg/kubelet/config
       - k8s.io/kubernetes/pkg/kubelet/configmap

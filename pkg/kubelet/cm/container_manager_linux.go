@@ -968,7 +968,7 @@ func (cm *containerManagerImpl) GetCPUs(podUID, containerName string) []int64 {
 
 func (cm *containerManagerImpl) GetAllocatableCPUs() []int64 {
 	if cm.resManagers.cpuManager != nil {
-		return cm.cpuManager.GetAllocatableCPUs().ToSliceNoSortInt64()
+		return cm.resManagers.cpuManager.GetAllocatableCPUs().ToSliceNoSortInt64()
 	}
 	return []int64{}
 }
