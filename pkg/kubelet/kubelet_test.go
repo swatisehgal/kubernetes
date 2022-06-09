@@ -334,7 +334,7 @@ func newTestKubeletWithImageList(
 	kubelet.admitHandlers.AddPodAdmitHandler(shutdownAdmitHandler)
 
 	// Add this as cleanup predicate pod admitter
-	kubelet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(kubelet.getNodeAnyWay, lifecycle.NewAdmissionFailureHandlerStub(), kubelet.containerManager.UpdatePluginResources))
+	kubelet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(kubelet.getNodeAnyWay, lifecycle.NewAdmissionFailureHandlerStub(), kubelet.containerManager.UpdatePluginResources, kubelet.containerManager.UpdateResourcePluginResources))
 
 	allPlugins := []volume.VolumePlugin{}
 	plug := &volumetest.FakeVolumePlugin{PluginName: "fake", Host: nil}
@@ -1037,9 +1037,38 @@ func TestHandlePluginResources(t *testing.T) {
 		return nil
 	}
 
+	updateResourcePluginResourcesFunc := func(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
+		// Maps from resourceName to the value we use to set node.allocatableResource[resourceName].
+		// A resource with invalid value (< 0) causes the function to return an error
+		// to emulate resource Allocation failure.
+		// Resources not contained in this map will have their node.allocatableResource
+		// quantity unchanged.
+		updateResourceMap := map[v1.ResourceName]resource.Quantity{
+			adjustedResource: resourceQuantity2,
+			emptyResource:    resourceQuantity0,
+			failedResource:   resourceQuantityInvalid,
+		}
+		pod := attrs.Pod
+		newAllocatableResource := node.Allocatable.Clone()
+		for _, container := range pod.Spec.Containers {
+			for resource := range container.Resources.Requests {
+				newQuantity, exist := updateResourceMap[resource]
+				if !exist {
+					continue
+				}
+				if newQuantity.Value() < 0 {
+					return fmt.Errorf("Allocation failed")
+				}
+				newAllocatableResource.ScalarResources[resource] = newQuantity.Value()
+			}
+		}
+		node.Allocatable = newAllocatableResource
+		return nil
+	}
+
 	// add updatePluginResourcesFunc to admission handler, to test it's behavior.
 	kl.admitHandlers = lifecycle.PodAdmitHandlers{}
-	kl.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(kl.getNodeAnyWay, lifecycle.NewAdmissionFailureHandlerStub(), updatePluginResourcesFunc))
+	kl.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(kl.getNodeAnyWay, lifecycle.NewAdmissionFailureHandlerStub(), updatePluginResourcesFunc, updateResourcePluginResourcesFunc))
 
 	recorder := record.NewFakeRecorder(20)
 	nodeRef := &v1.ObjectReference{

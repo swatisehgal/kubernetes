@@ -55,6 +55,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/devicemanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/memorymanager"
 	memorymanagerstate "k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/memorymanager/state"
+	"k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/resourcemanagerplugin"
 	"k8s.io/kubernetes/pkg/kubelet/cm/resourcemanagers/topologymanager"
 	cmutil "k8s.io/kubernetes/pkg/kubelet/cm/util"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -133,6 +134,8 @@ type resourceManagers struct {
 	memoryManager memorymanager.Manager
 	// Interface for Topology resource co-ordination
 	topologyManager topologymanager.Manager
+	// Interface for Resource management plugins
+	resourcePluginManager resourcemanagerplugin.Manager
 }
 
 type features struct {
@@ -310,6 +313,21 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		cm.resManagers.topologyManager.AddHintProvider(cm.resManagers.deviceManager)
 	} else {
 		cm.resManagers.deviceManager, err = devicemanager.NewManagerStub()
+
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check if resourcePluginEnabled
+	// For now, we assume that the resourcePlugin is enabled in Kubelet
+	klog.InfoS("Creating resource plugin manager")
+	if true {
+		cm.resManagers.resourcePluginManager, err = resourcemanagerplugin.NewManagerImpl(machineInfo.Topology, cm.resManagers.topologyManager)
+		cm.resManagers.topologyManager.AddHintProvider(cm.resManagers.resourcePluginManager)
+	} else {
+		cm.resManagers.resourcePluginManager, err = resourcemanagerplugin.NewManagerStub()
+
 	}
 	if err != nil {
 		return nil, err
@@ -639,6 +657,10 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 	if err := cm.resManagers.deviceManager.Start(devicemanager.ActivePodsFunc(activePods), sourcesReady); err != nil {
 		return err
 	}
+	// Starts resource plugin manager.
+	if err := cm.resManagers.resourcePluginManager.Start(resourcemanagerplugin.ActivePodsFunc(activePods), sourcesReady); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -665,8 +687,29 @@ func (cm *containerManagerImpl) GetResources(pod *v1.Pod, container *v1.Containe
 	return opts, nil
 }
 
+func (cm *containerManagerImpl) GetResourcePluginResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
+	opts := &kubecontainer.RunContainerOptions{}
+	// Allocate should already be called during predicateAdmitHandler.Admit(),
+	// just try to fetch device runtime information from cached state here
+	devOpts, err := cm.resManagers.deviceManager.GetDeviceRunContainerOptions(pod, container)
+	if err != nil {
+		return nil, err
+	} else if devOpts == nil {
+		return opts, nil
+	}
+	opts.Devices = append(opts.Devices, devOpts.Devices...)
+	opts.Mounts = append(opts.Mounts, devOpts.Mounts...)
+	opts.Envs = append(opts.Envs, devOpts.Envs...)
+	opts.Annotations = append(opts.Annotations, devOpts.Annotations...)
+	return opts, nil
+}
+
 func (cm *containerManagerImpl) UpdatePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
 	return cm.resManagers.deviceManager.UpdatePluginResources(node, attrs)
+}
+
+func (cm *containerManagerImpl) UpdateResourcePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
+	return cm.resManagers.resourcePluginManager.UpdatePluginResources(node, attrs)
 }
 
 func (cm *containerManagerImpl) GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler {
@@ -674,18 +717,19 @@ func (cm *containerManagerImpl) GetAllocateResourcesPodAdmitHandler() lifecycle.
 		return cm.resManagers.topologyManager
 	}
 	// TODO: we need to think about a better way to do this. This will work for
-	// now so long as we have only the cpuManager and deviceManager relying on
-	// allocations here. However, going forward it is not generalized enough to
-	// work as we add more and more hint providers that the TopologyManager
+	// now so long as we have cpuManager, deviceManager and resourcePluginManager
+	// relying on allocations here. However, going forward it is not generalized
+	// enough to work as we add more and more hint providers that the TopologyManager
 	// needs to call Allocate() on (that may not be directly intstantiated
 	// inside this component).
-	return &resourceAllocator{cm.resManagers.cpuManager, cm.resManagers.memoryManager, cm.resManagers.deviceManager}
+	return &resourceAllocator{cm.resManagers.cpuManager, cm.resManagers.memoryManager, cm.resManagers.deviceManager, cm.resManagers.resourcePluginManager}
 }
 
 type resourceAllocator struct {
-	cpuManager    cpumanager.Manager
-	memoryManager memorymanager.Manager
-	deviceManager devicemanager.Manager
+	cpuManager      cpumanager.Manager
+	memoryManager   memorymanager.Manager
+	deviceManager   devicemanager.Manager
+	resourceManager resourcemanagerplugin.Manager
 }
 
 func (m *resourceAllocator) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {

@@ -146,10 +146,24 @@ func (cm *FakeContainerManager) GetResources(pod *v1.Pod, container *v1.Containe
 	return &kubecontainer.RunContainerOptions{}, nil
 }
 
+func (cm *FakeContainerManager) GetResourcePluginResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "GetResourcePluginResources")
+	return &kubecontainer.RunContainerOptions{}, nil
+}
+
 func (cm *FakeContainerManager) UpdatePluginResources(*schedulerframework.NodeInfo, *lifecycle.PodAdmitAttributes) error {
 	cm.Lock()
 	defer cm.Unlock()
 	cm.CalledFunctions = append(cm.CalledFunctions, "UpdatePluginResources")
+	return nil
+}
+
+func (cm *FakeContainerManager) UpdateResourcePluginResources(*schedulerframework.NodeInfo, *lifecycle.PodAdmitAttributes) error {
+	cm.Lock()
+	defer cm.Unlock()
+	cm.CalledFunctions = append(cm.CalledFunctions, "UpdateResourcePluginResources")
 	return nil
 }
 

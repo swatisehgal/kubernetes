@@ -44,17 +44,19 @@ type predicateAdmitHandler struct {
 	getNodeAnyWayFunc        getNodeAnyWayFuncType
 	pluginResourceUpdateFunc pluginResourceUpdateFuncType
 	admissionFailureHandler  AdmissionFailureHandler
+	resourcepluginUpdateFunc pluginResourceUpdateFuncType
 }
 
 var _ PodAdmitHandler = &predicateAdmitHandler{}
 
 // NewPredicateAdmitHandler returns a PodAdmitHandler which is used to evaluates
 // if a pod can be admitted from the perspective of predicates.
-func NewPredicateAdmitHandler(getNodeAnyWayFunc getNodeAnyWayFuncType, admissionFailureHandler AdmissionFailureHandler, pluginResourceUpdateFunc pluginResourceUpdateFuncType) PodAdmitHandler {
+func NewPredicateAdmitHandler(getNodeAnyWayFunc getNodeAnyWayFuncType, admissionFailureHandler AdmissionFailureHandler, pluginResourceUpdateFunc pluginResourceUpdateFuncType, resourcepluginUpdateFunc pluginResourceUpdateFuncType) PodAdmitHandler {
 	return &predicateAdmitHandler{
 		getNodeAnyWayFunc,
 		pluginResourceUpdateFunc,
 		admissionFailureHandler,
+		resourcepluginUpdateFunc,
 	}
 }
 
@@ -72,9 +74,19 @@ func (w *predicateAdmitHandler) Admit(attrs *PodAdmitAttributes) PodAdmitResult 
 	pods := attrs.OtherPods
 	nodeInfo := schedulerframework.NewNodeInfo(pods...)
 	nodeInfo.SetNode(node)
-	// ensure the node has enough plugin resources for that required in pods
+	// ensure the node has enough device plugin resources for that required in pods
 	if err = w.pluginResourceUpdateFunc(nodeInfo, attrs); err != nil {
 		message := fmt.Sprintf("Update plugin resources failed due to %v, which is unexpected.", err)
+		klog.InfoS("Failed to admit pod", "pod", klog.KObj(admitPod), "message", message)
+		return PodAdmitResult{
+			Admit:   false,
+			Reason:  "UnexpectedAdmissionError",
+			Message: message,
+		}
+	}
+	// ensure the node has enough resources provided by resources plugins for thoses required in pods
+	if err = w.resourcepluginUpdateFunc(nodeInfo, attrs); err != nil {
+		message := fmt.Sprintf("Update resource plugin resources failed due to %v, which is unexpected.", err)
 		klog.InfoS("Failed to admit pod", "pod", klog.KObj(admitPod), "message", message)
 		return PodAdmitResult{
 			Admit:   false,

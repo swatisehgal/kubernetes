@@ -88,12 +88,23 @@ type ContainerManager interface {
 	// extended resources required by container.
 	GetResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error)
 
+	// GetResourcePluginResources returns RunContainerOptions with devices, mounts, and env fields populated for
+	// extended resources required by container.
+	GetResourcePluginResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error)
+
 	// UpdatePluginResources calls Allocate of device plugin handler for potential
 	// requests for device plugin resources, and returns an error if fails.
 	// Otherwise, it updates allocatableResource in nodeInfo if necessary,
 	// to make sure it is at least equal to the pod's requested capacity for
 	// any registered device plugin resource
 	UpdatePluginResources(*schedulerframework.NodeInfo, *lifecycle.PodAdmitAttributes) error
+
+	// UpdateResourcePluginResources calls Allocate of resource plugin handler for potential
+	// requests for resource plugin resources, and returns an error if fails.
+	// Otherwise, it updates allocatableResource in nodeInfo if necessary,
+	// to make sure it is at least equal to the pod's requested capacity for
+	// any registered device plugin resource
+	UpdateResourcePluginResources(*schedulerframework.NodeInfo, *lifecycle.PodAdmitAttributes) error
 
 	InternalContainerLifecycle() InternalContainerLifecycle
 

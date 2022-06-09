@@ -233,6 +233,7 @@ func run(cmd *cobra.Command, config *hollowNodeConfig) error {
 			}
 
 			containerManager = cm.NewStubContainerManagerWithDevicePluginResource(extendedResources)
+			containerManager = cm.NewStubContainerManagerWithResourcePluginResource(extendedResources)
 		} else {
 			containerManager = cm.NewStubContainerManager()
 		}

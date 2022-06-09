@@ -89,6 +89,10 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 	if err := cm.deviceManager.Start(devicemanager.ActivePodsFunc(activePods), sourcesReady); err != nil {
 		return err
 	}
+	// Starts resource plugin manager.
+	if err := cm.resManagers.resourcePluginManager.Start(resourcemanagerplugin.ActivePodsFunc(activePods), sourcesReady); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -118,6 +122,20 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 		cm.topologyManager.AddHintProvider(cm.deviceManager)
 	} else {
 		cm.deviceManager, err = devicemanager.NewManagerStub()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check if resourcePluginEnabled
+	// For now, we assume that the resourcePlugin is enabled in Kubelet
+	klog.InfoS("Creating resource plugin manager")
+	if true {
+		cm.resManagers.resourcePluginManager, err = resourcemanagerplugin.NewManagerImpl(machineInfo.Topology, cm.resManagers.topologyManager)
+		cm.resManagers.topologyManager.AddHintProvider(cm.resManagers.resourcePluginManager)
+	} else {
+		cm.resManagers.resourcePluginManager, err = resourcemanagerplugin.NewManagerStub()
+
 	}
 	if err != nil {
 		return nil, err
@@ -188,6 +206,23 @@ func (cm *containerManagerImpl) NewPodContainerManager() PodContainerManager {
 }
 
 func (cm *containerManagerImpl) GetResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
+	opts := &kubecontainer.RunContainerOptions{}
+	// Allocate should already be called during predicateAdmitHandler.Admit(),
+	// just try to fetch device runtime information from cached state here
+	devOpts, err := cm.deviceManager.GetDeviceRunContainerOptions(pod, container)
+	if err != nil {
+		return nil, err
+	} else if devOpts == nil {
+		return opts, nil
+	}
+	opts.Devices = append(opts.Devices, devOpts.Devices...)
+	opts.Mounts = append(opts.Mounts, devOpts.Mounts...)
+	opts.Envs = append(opts.Envs, devOpts.Envs...)
+	opts.Annotations = append(opts.Annotations, devOpts.Annotations...)
+	return opts, nil
+}
+
+func (cm *containerManagerImpl) GetResourcePluginResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
 	opts := &kubecontainer.RunContainerOptions{}
 	// Allocate should already be called during predicateAdmitHandler.Admit(),
 	// just try to fetch device runtime information from cached state here

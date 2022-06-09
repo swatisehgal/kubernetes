@@ -99,7 +99,15 @@ func (cm *containerManagerStub) GetResources(pod *v1.Pod, container *v1.Containe
 	return &kubecontainer.RunContainerOptions{}, nil
 }
 
+func (cm *containerManagerStub) GetResourcePluginResources(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
+	return &kubecontainer.RunContainerOptions{}, nil
+}
+
 func (cm *containerManagerStub) UpdatePluginResources(*schedulerframework.NodeInfo, *lifecycle.PodAdmitAttributes) error {
+	return nil
+}
+
+func (cm *containerManagerStub) UpdateResourcePluginResources(*schedulerframework.NodeInfo, *lifecycle.PodAdmitAttributes) error {
 	return nil
 }
 
@@ -160,6 +168,13 @@ func NewStubContainerManagerWithExtendedResource(shouldResetExtendedResourceCapa
 }
 
 func NewStubContainerManagerWithDevicePluginResource(extendedPluginResources v1.ResourceList) ContainerManager {
+	return &containerManagerStub{
+		shouldResetExtendedResourceCapacity: false,
+		extendedPluginResources:             extendedPluginResources,
+	}
+}
+
+func NewStubContainerManagerWithResourcePluginResource(extendedPluginResources v1.ResourceList) ContainerManager {
 	return &containerManagerStub{
 		shouldResetExtendedResourceCapacity: false,
 		extendedPluginResources:             extendedPluginResources,

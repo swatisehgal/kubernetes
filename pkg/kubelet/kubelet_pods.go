@@ -463,6 +463,10 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	if err != nil {
 		return nil, nil, err
 	}
+	pluginOpts, err := kl.containerManager.GetResourcePluginResources(pod, container)
+	if err != nil {
+		return nil, nil, err
+	}
 	// The value of hostname is the short host name and it is sent to makeMounts to create /etc/hosts file.
 	hostname, hostDomainName, err := kl.GeneratePodHostNameAndDomain(pod)
 	if err != nil {
@@ -484,12 +488,14 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 		return nil, nil, err
 	}
 	opts.Devices = append(opts.Devices, blkVolumes...)
+	opts.Devices = append(opts.Devices, pluginOpts.Devices...)
 
 	envs, err := kl.makeEnvironmentVariables(pod, container, podIP, podIPs)
 	if err != nil {
 		return nil, nil, err
 	}
 	opts.Envs = append(opts.Envs, envs...)
+	opts.Envs = append(opts.Envs, pluginOpts.Envs...)
 
 	// only podIPs is sent to makeMounts, as podIPs is populated even if dual-stack feature flag is not enabled.
 	mounts, cleanupAction, err := makeMounts(pod, kl.getPodDir(pod.UID), container, hostname, hostDomainName, podIPs, volumes, kl.hostutil, kl.subpather, opts.Envs)
@@ -497,6 +503,7 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 		return nil, cleanupAction, err
 	}
 	opts.Mounts = append(opts.Mounts, mounts...)
+	opts.Mounts = append(opts.Mounts, pluginOpts.Mounts...)
 
 	// adding TerminationMessagePath on Windows is only allowed if ContainerD is used. Individual files cannot
 	// be mounted as volumes using Docker for Windows.
