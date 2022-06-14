@@ -2383,8 +2383,6 @@ k8s.io/metrics/pkg/client/external_metrics/fake
 # k8s.io/mount-utils v0.0.0 => ./staging/src/k8s.io/mount-utils
 ## explicit; go 1.18
 k8s.io/mount-utils
-# k8s.io/noderesourcetopology-api v0.0.0 => ./staging/src/k8s.io/noderesourcetopology-api
-## explicit; go 1.18
 # k8s.io/pod-security-admission v0.0.0 => ./staging/src/k8s.io/pod-security-admission
 ## explicit; go 1.18
 k8s.io/pod-security-admission/admission
