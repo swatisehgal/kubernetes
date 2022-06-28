@@ -6,6 +6,14 @@ Please refer to [this](https://docs.google.com/document/d/12kj3fK8boNuPNq) docum
 
 The repository kubernetes/noderesourcetopology-api is a mirror of https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/noderesourcetopology-api. Please do NOT file issues or submit PRs against the kubernetes/cri-api repository as it is readonly, all development is done in kubernetes/kubernetes.
 
+## API Definition
+
+API defintion can be found [here](pkg/apis/topology).
+
+## CR Examples
+
+The CRD specification and an example CR can be found in the [manifests](manifests) directory.
+
 ## Community, discussion, contribution, and support
 
 Learn how to engage with the Kubernetes community on the [community
