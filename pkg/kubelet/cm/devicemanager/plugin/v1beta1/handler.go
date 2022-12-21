@@ -28,22 +28,24 @@ import (
 )
 
 func (s *server) GetPluginHandler() cache.PluginHandler {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler:  GetPluginHandler")
 	if f, err := os.Create(s.socketDir + "DEPRECATION"); err != nil {
 		klog.ErrorS(err, "Failed to create deprecation file at socket dir", "path", s.socketDir)
 	} else {
 		f.Close()
-		klog.V(4).InfoS("Created deprecation file", "path", f.Name())
+		klog.InfoS("Created deprecation file", "path", f.Name())
 	}
 	return s
 }
 
 func (s *server) RegisterPlugin(pluginName string, endpoint string, versions []string) error {
-	klog.V(2).InfoS("Registering plugin at endpoint", "plugin", pluginName, "endpoint", endpoint)
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: Registering plugin at endpoint", "plugin", pluginName, "endpoint", endpoint)
 	return s.connectClient(pluginName, endpoint)
 }
 
 func (s *server) DeRegisterPlugin(pluginName string) {
-	klog.V(2).InfoS("Deregistering plugin", "plugin", pluginName)
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler: DeRegisterPlugin")
+	klog.InfoS("Deregistering plugin", "plugin", pluginName)
 	client := s.getClient(pluginName)
 	if client != nil {
 		s.disconnectClient(pluginName, client)
@@ -51,7 +53,7 @@ func (s *server) DeRegisterPlugin(pluginName string) {
 }
 
 func (s *server) ValidatePlugin(pluginName string, endpoint string, versions []string) error {
-	klog.V(2).InfoS("Got plugin at endpoint with versions", "plugin", pluginName, "endpoint", endpoint, "versions", versions)
+	klog.InfoS("Got plugin at endpoint with versions", "plugin", pluginName, "endpoint", endpoint, "versions", versions)
 
 	if !s.isVersionCompatibleWithPlugin(versions...) {
 		return fmt.Errorf("manager version, %s, is not among plugin supported versions %v", api.Version, versions)
@@ -65,6 +67,8 @@ func (s *server) ValidatePlugin(pluginName string, endpoint string, versions []s
 }
 
 func (s *server) connectClient(name string, socketPath string) error {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler:  connectClient")
+
 	c := NewPluginClient(name, socketPath, s.chandler)
 
 	s.registerClient(name, c)
@@ -82,27 +86,35 @@ func (s *server) connectClient(name string, socketPath string) error {
 }
 
 func (s *server) disconnectClient(name string, c Client) error {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler: disconnectClient")
+
 	s.deregisterClient(name)
 	return c.Disconnect()
 }
 
 func (s *server) registerClient(name string, c Client) {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler: registerClient")
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	s.clients[name] = c
-	klog.V(2).InfoS("Registered client", "name", name)
+	klog.InfoS("Registered client", "name", name)
 }
 
 func (s *server) deregisterClient(name string) {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler: deregisterClient")
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	delete(s.clients, name)
-	klog.V(2).InfoS("Deregistered client", "name", name)
+	klog.InfoS("Deregistered client", "name", name)
 }
 
 func (s *server) runClient(name string, c Client) {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: handler: runClient")
+
 	c.Run()
 
 	c = s.getClient(name)

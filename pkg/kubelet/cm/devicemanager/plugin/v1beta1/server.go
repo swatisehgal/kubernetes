@@ -63,7 +63,7 @@ func NewServer(socketPath string, rh RegistrationHandler, ch ClientHandler) (Ser
 
 	dir, name := filepath.Split(socketPath)
 
-	klog.V(2).InfoS("Creating device plugin registration server", "version", api.Version, "socket", socketPath)
+	klog.InfoS("Creating device plugin registration server", "version", api.Version, "socket", socketPath)
 	s := &server{
 		socketName: name,
 		socketDir:  dir,
@@ -76,7 +76,7 @@ func NewServer(socketPath string, rh RegistrationHandler, ch ClientHandler) (Ser
 }
 
 func (s *server) Start() error {
-	klog.V(2).InfoS("Starting device plugin registration server")
+	klog.InfoS("Starting device plugin registration server")
 
 	if err := os.MkdirAll(s.socketDir, 0750); err != nil {
 		klog.ErrorS(err, "Failed to create the device plugin socket directory", "directory", s.socketDir)

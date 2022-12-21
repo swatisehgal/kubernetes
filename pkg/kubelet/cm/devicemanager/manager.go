@@ -122,7 +122,7 @@ func NewManagerImpl(topology []cadvisorapi.Node, topologyAffinityStore topologym
 }
 
 func newManagerImpl(socketPath string, topology []cadvisorapi.Node, topologyAffinityStore topologymanager.Store) (*ManagerImpl, error) {
-	klog.V(2).InfoS("Creating Device Plugin manager", "path", socketPath)
+	klog.InfoS("Creating Device Plugin manager", "path", socketPath)
 
 	var numaNodes []int
 	for _, node := range topology {
@@ -166,6 +166,10 @@ func newManagerImpl(socketPath string, topology []cadvisorapi.Node, topologyAffi
 // CleanupPluginDirectory is to remove all existing unix sockets
 // from /var/lib/kubelet/device-plugins on Device Plugin Manager start
 func (m *ManagerImpl) CleanupPluginDirectory(dir string) error {
+
+	klog.InfoS("CleanupPluginDirectory")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: CleanupPluginDirectory m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	d, err := os.Open(dir)
 	if err != nil {
 		return err
@@ -205,6 +209,8 @@ func (m *ManagerImpl) CleanupPluginDirectory(dir string) error {
 // PluginConnected is to connect a plugin to a new endpoint.
 // This is done as part of device plugin registration.
 func (m *ManagerImpl) PluginConnected(resourceName string, p plugin.DevicePlugin) error {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: PluginConnected m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	options, err := p.API().GetDevicePluginOptions(context.Background(), &pluginapi.Empty{})
 	if err != nil {
 		return fmt.Errorf("failed to get device plugin options: %v", err)
@@ -222,12 +228,14 @@ func (m *ManagerImpl) PluginConnected(resourceName string, p plugin.DevicePlugin
 // PluginDisconnected is to disconnect a plugin from an endpoint.
 // This is done as part of device plugin deregistration.
 func (m *ManagerImpl) PluginDisconnected(resourceName string) {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: DisConnected m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	if _, exists := m.endpoints[resourceName]; exists {
 		m.markResourceUnhealthy(resourceName)
-		klog.V(2).InfoS("Endpoint became unhealthy", "resourceName", resourceName, "endpoint", m.endpoints[resourceName])
+		klog.InfoS("Endpoint became unhealthy", "resourceName", resourceName, "endpoint", m.endpoints[resourceName])
 	}
 
 	m.endpoints[resourceName].e.setStopTime(time.Now())
@@ -238,6 +246,9 @@ func (m *ManagerImpl) PluginDisconnected(resourceName string) {
 // is captured. Also, registered device and device to container allocation
 // information is checkpointed to the disk.
 func (m *ManagerImpl) PluginListAndWatchReceiver(resourceName string, resp *pluginapi.ListAndWatchResponse) {
+	klog.InfoS("swsehgal:cm: device manager: manager.go: PluginListAndWatchReceiver")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: PluginListAndWatchReceiver m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	var devices []pluginapi.Device
 	for _, d := range resp.Devices {
 		devices = append(devices, *d)
@@ -246,6 +257,9 @@ func (m *ManagerImpl) PluginListAndWatchReceiver(resourceName string, resp *plug
 }
 
 func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices []pluginapi.Device) {
+	klog.InfoS("swsehgal:cm: device manager: manager.go: genericDeviceUpdateCallback")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: genericDeviceUpdateCallback m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	m.mutex.Lock()
 	m.healthyDevices[resourceName] = sets.NewString()
 	m.unhealthyDevices[resourceName] = sets.NewString()
@@ -259,6 +273,8 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 		}
 	}
 	m.mutex.Unlock()
+	klog.InfoS("swsehgal:cm: device manager: manager.go: writing to checkpoint")
+
 	if err := m.writeCheckpoint(); err != nil {
 		klog.ErrorS(err, "Writing checkpoint encountered")
 	}
@@ -278,7 +294,8 @@ func (m *ManagerImpl) checkpointFile() string {
 // podDevices and allocatedDevices information from checkpointed state and
 // starts device plugin registration service.
 func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.SourcesReady) error {
-	klog.V(2).InfoS("Starting Device Plugin manager")
+	klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Starting Device Plugin manager")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Starting server m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
 
 	m.activePods = activePods
 	m.sourcesReady = sourcesReady
@@ -286,8 +303,10 @@ func (m *ManagerImpl) Start(activePods ActivePodsFunc, sourcesReady config.Sourc
 	// Loads in allocatedDevices information from disk.
 	err := m.readCheckpoint()
 	if err != nil {
-		klog.InfoS("Continue after failing to read checkpoint file. Device allocation info may NOT be up-to-date", "err", err)
+		klog.Infof("swsehgal: Continue after failing to read checkpoint file. Device allocation info may NOT be up-to-date err:%v ", err)
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Loads in allocatedDevices information from disk ")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Starting server")
 
 	return m.server.Start()
 }
@@ -302,6 +321,9 @@ func (m *ManagerImpl) Stop() error {
 // Allocate is the call that you can use to allocate a set of devices
 // from the registered device plugins.
 func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
+	klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Allocate")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Allocate m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	// The pod is during the admission phase. We need to save the pod to avoid it
 	// being cleaned before the admission ended
 	m.setPodPendingAdmission(pod)
@@ -330,25 +352,32 @@ func (m *ManagerImpl) Allocate(pod *v1.Pod, container *v1.Container) error {
 	if err := m.allocateContainerResources(pod, container, m.devicesToReuse[string(pod.UID)]); err != nil {
 		return err
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Allocate: m.podDevices: %#v", m.podDevices)
 	m.podDevices.removeContainerAllocatedResources(string(pod.UID), container.Name, m.devicesToReuse[string(pod.UID)])
 	return nil
 }
 
 // UpdatePluginResources updates node resources based on devices already allocated to pods.
 func (m *ManagerImpl) UpdatePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
+	klog.InfoS("swsehgal: UpdatePluginResources")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: UpdatePluginResources m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	pod := attrs.Pod
 
 	// quick return if no pluginResources requested
 	if !m.podDevices.hasPod(string(pod.UID)) {
 		return nil
 	}
-
+	klog.InfoS("swsehgal: before sanitization: %v", node)
 	m.sanitizeNodeAllocatable(node)
+	klog.InfoS("swsehgal: after sanitization: %v", node)
 	return nil
 }
 
 func (m *ManagerImpl) markResourceUnhealthy(resourceName string) {
-	klog.V(2).InfoS("Mark all resources Unhealthy for resource", "resourceName", resourceName)
+	klog.InfoS("Mark all resources Unhealthy for resource", "resourceName", resourceName)
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: markResourceUnhealthy m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	healthyDevices := sets.NewString()
 	if _, ok := m.healthyDevices[resourceName]; ok {
 		healthyDevices = m.healthyDevices[resourceName]
@@ -373,14 +402,19 @@ func (m *ManagerImpl) markResourceUnhealthy(resourceName string) {
 // capacity for already allocated pods so that they can continue to run. However, new pods
 // requiring device plugin resources will not be scheduled till device plugin re-registers.
 func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string) {
+	klog.Infof("swsehgal: GetCapacity: called when node status is updated")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: GetCapacity m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	needsUpdateCheckpoint := false
 	var capacity = v1.ResourceList{}
 	var allocatable = v1.ResourceList{}
 	deletedResources := sets.NewString()
 	m.mutex.Lock()
 	for resourceName, devices := range m.healthyDevices {
+		klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: HEALTHY devices: resourceName: %#v devices:%#v", resourceName, devices)
 		eI, ok := m.endpoints[resourceName]
 		if (ok && eI.e.stopGracePeriodExpired()) || !ok {
+			klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: HEALTHY devices resourceName: %#v ok && eI.e.stopGracePeriodExpired(): %#v !ok: %#v", resourceName, ok && eI.e.stopGracePeriodExpired(), !ok)
 			// The resources contained in endpoints and (un)healthyDevices
 			// should always be consistent. Otherwise, we run with the risk
 			// of failing to garbage collect non-existing resources or devices.
@@ -388,42 +422,59 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 				klog.ErrorS(nil, "Unexpected: healthyDevices and endpoints are out of sync")
 			}
 			delete(m.endpoints, resourceName)
+			klog.InfoS("swsehgal: cm: device manager:manager.go: GetCapacity: deleting resource endpoint from the list of endpoints")
 			delete(m.healthyDevices, resourceName)
+			klog.InfoS("swsehgal: cm: device manager:manager.go: GetCapacity: deleting resource endpoint from the list of endpoints")
 			deletedResources.Insert(resourceName)
 			needsUpdateCheckpoint = true
+
 		} else {
 			capacity[v1.ResourceName(resourceName)] = *resource.NewQuantity(int64(devices.Len()), resource.DecimalSI)
 			allocatable[v1.ResourceName(resourceName)] = *resource.NewQuantity(int64(devices.Len()), resource.DecimalSI)
+			klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: resourceName: %#v updating capacity: %#v, allocatable :%#v", resourceName, capacity[v1.ResourceName(resourceName)], allocatable[v1.ResourceName(resourceName)])
 		}
 	}
+	klog.InfoS("swsehgal: cm: device manager:manager.go: GetCapacity: after scanning healthy resources deletedResources: %#v", deletedResources)
 	for resourceName, devices := range m.unhealthyDevices {
+		klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: UNHEALTHY devices: resourceName: %#v devices:%#v", resourceName, devices)
+
 		eI, ok := m.endpoints[resourceName]
 		if (ok && eI.e.stopGracePeriodExpired()) || !ok {
+			klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: UNHEALTHY devices resourceName: %#v ok && eI.e.stopGracePeriodExpired(): %#v !ok: %#v", resourceName, ok && eI.e.stopGracePeriodExpired(), !ok)
 			if !ok {
 				klog.ErrorS(nil, "Unexpected: unhealthyDevices and endpoints are out of sync")
 			}
 			delete(m.endpoints, resourceName)
+			klog.InfoS("swsehgal: cm: device manager:manager.go: GetCapacity: deleting resource endpoint from the list of endpoints")
 			delete(m.unhealthyDevices, resourceName)
+			klog.InfoS("swsehgal: cm: device manager:manager.go: GetCapacity: deleting resource endpoint from the list of endpoints")
 			deletedResources.Insert(resourceName)
 			needsUpdateCheckpoint = true
 		} else {
 			capacityCount := capacity[v1.ResourceName(resourceName)]
+			klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: resourceName: %#v capacityCount:%#v", resourceName, capacityCount)
 			unhealthyCount := *resource.NewQuantity(int64(devices.Len()), resource.DecimalSI)
+			klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: resourceName: %#v unhealthyCount:%#v", resourceName, unhealthyCount)
 			capacityCount.Add(unhealthyCount)
 			capacity[v1.ResourceName(resourceName)] = capacityCount
+			klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity: resourceName: %#v updating capacity: %#v", resourceName, capacity[v1.ResourceName(resourceName)])
 		}
 	}
+	klog.InfoS("swsehgal: cm: device manager:manager.go: GetCapacity: after scanning unhealthy resources deletedResources: %#v", deletedResources)
 	m.mutex.Unlock()
 	if needsUpdateCheckpoint {
 		if err := m.writeCheckpoint(); err != nil {
 			klog.ErrorS(err, "Error on writing checkpoint")
 		}
 	}
+	klog.Infof("swsehgal: cm: device manager:manager.go: GetCapacity:capacity: %#v, allocatable: %#v, deletedResources.UnsortedList(): %#v", capacity, allocatable, deletedResources.UnsortedList())
 	return capacity, allocatable, deletedResources.UnsortedList()
 }
 
 // Checkpoints device to container allocation information to disk.
 func (m *ManagerImpl) writeCheckpoint() error {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: writeCheckpoint m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	m.mutex.Lock()
 	registeredDevs := make(map[string][]string)
 	for resource, devices := range m.healthyDevices {
@@ -435,7 +486,7 @@ func (m *ManagerImpl) writeCheckpoint() error {
 	err := m.checkpointManager.CreateCheckpoint(kubeletDeviceManagerCheckpoint, data)
 	if err != nil {
 		err2 := fmt.Errorf("failed to write checkpoint file %q: %v", kubeletDeviceManagerCheckpoint, err)
-		klog.InfoS("Failed to write checkpoint file", "err", err)
+		klog.InfoS("swsehgal: Failed to write checkpoint file", "err", err)
 		return err2
 	}
 	return nil
@@ -444,6 +495,9 @@ func (m *ManagerImpl) writeCheckpoint() error {
 // Reads device to container allocation information from disk, and populates
 // m.allocatedDevices accordingly.
 func (m *ManagerImpl) readCheckpoint() error {
+	klog.InfoS("swsehgal:cm: devicemgr: mgr.go: In readCheckpoint")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: readCheckpoint m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	// the vast majority of time we restore a compatible checkpoint, so we try
 	// the current version first. Trying to restore older format checkpoints is
 	// relevant only in the kubelet upgrade flow, which happens once in a
@@ -452,27 +506,32 @@ func (m *ManagerImpl) readCheckpoint() error {
 	if err != nil {
 		if err == errors.ErrCheckpointNotFound {
 			// no point in trying anything else
-			klog.InfoS("Failed to read data from checkpoint", "checkpoint", kubeletDeviceManagerCheckpoint, "err", err)
+			klog.Infof("swsehgal: Failed to read data from checkpoint: checkpoint: %#v err: %#v", kubeletDeviceManagerCheckpoint, err)
 			return nil
 		}
+		klog.Infof("swsehgal::cm: devicemgr: mgr.go: Read data from a V2 checkpoint: %#v", kubeletDeviceManagerCheckpoint)
 
 		var errv1 error
 		// one last try: maybe it's a old format checkpoint?
 		cp, errv1 = m.getCheckpointV1()
 		if errv1 != nil {
-			klog.InfoS("Failed to read checkpoint V1 file", "err", errv1)
+			klog.InfoS("swsehgal: Failed to read checkpoint V1 file", "err", errv1)
 			// intentionally return the parent error. We expect to restore V1 checkpoints
 			// a tiny fraction of time, so what matters most is the current checkpoint read error.
 			return err
 		}
-		klog.InfoS("Read data from a V1 checkpoint", "checkpoint", kubeletDeviceManagerCheckpoint)
+		klog.Infof("swsehgal: Read data from a V1 checkpoint: %#v", kubeletDeviceManagerCheckpoint)
 	}
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	podDevices, registeredDevs := cp.GetDataInLatestFormat()
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: readCheckpoint podDevices: %#v, registeredDevs: %#v", podDevices, registeredDevs)
+
 	m.podDevices.fromCheckpointData(podDevices)
 	m.allocatedDevices = m.podDevices.devices()
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: m.allDevices: %#v, m.podDevices.devices(): %#v", m.allDevices, m.podDevices.devices())
+
 	for resource := range registeredDevs {
 		// During start up, creates empty healthyDevices list so that the resource capacity
 		// will stay zero till the corresponding device plugin re-registers.
@@ -480,6 +539,7 @@ func (m *ManagerImpl) readCheckpoint() error {
 		m.unhealthyDevices[resource] = sets.NewString()
 		m.endpoints[resource] = endpointInfo{e: newStoppedEndpointImpl(resource), opts: nil}
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: exiting readCheckpoint m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
 	return nil
 }
 
@@ -501,6 +561,9 @@ func (m *ManagerImpl) getCheckpointV1() (checkpoint.DeviceManagerCheckpoint, err
 
 // UpdateAllocatedDevices frees any Devices that are bound to terminated pods.
 func (m *ManagerImpl) UpdateAllocatedDevices() {
+	klog.InfoS("swsehgal:cm: devicemgr: mgr.go: In UpdateAllocatedDevices")
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: UpdateAllocatedDevices m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
 	if !m.sourcesReady.AllReady() {
 		return
 	}
@@ -512,23 +575,40 @@ func (m *ManagerImpl) UpdateAllocatedDevices() {
 	if m.pendingAdmissionPod != nil {
 		activeAndAdmittedPods = append(activeAndAdmittedPods, m.pendingAdmissionPod)
 	}
+	klog.InfoS("swsehgal: cm: devicemgr: mgr.go: identified activeAndAdmittedPods")
 
 	podsToBeRemoved := m.podDevices.pods()
 	for _, pod := range activeAndAdmittedPods {
+		klog.InfoS("swsehgal: activeAndAdmittedPods", "pod", klog.KObj(pod))
 		podsToBeRemoved.Delete(string(pod.UID))
 	}
 	if len(podsToBeRemoved) <= 0 {
 		return
 	}
-	klog.V(3).InfoS("Pods to be removed", "podUIDs", podsToBeRemoved.List())
+	klog.Infof("swsehgal: Pods to be removed,podUIDs: %#v", podsToBeRemoved.List())
 	m.podDevices.delete(podsToBeRemoved.List())
 	// Regenerated allocatedDevices after we update pod allocation information.
 	m.allocatedDevices = m.podDevices.devices()
+	klog.Infof("swsehgal: m.allocatedDevices: %#v", m.allocatedDevices)
+
 }
 
 // Returns list of device Ids we need to allocate with Allocate rpc call.
 // Returns empty list in case we don't need to issue the Allocate rpc call.
 func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, required int, reusableDevices sets.String) (sets.String, error) {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: podUID: %#v, contName: %#v, resource: %#v, required: %#v reusableDevices: %#v", podUID, contName, resource, required, reusableDevices)
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: devicesToAllocate m.allDevices: %#v, m.allocatedDevices: %#v, m.healthyDevices: %#v, m.unhealthyDevices: %#v, m.devicesToReuse: %#v m.podDevices: %#v", m.allDevices, m.allocatedDevices, m.healthyDevices, m.unhealthyDevices, m.devicesToReuse, m.podDevices)
+
+	healthyDevicesFromCheckpoint, ok := m.healthyDevices[resource]
+	if !ok {
+		klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Health check 1, m.healthyDevices :%#v", m.healthyDevices)
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: can't allocate unregistered device 1 %s", resource)
+		klog.Infof("can't allocate unregistered device %s", resource)
+
+	} else {
+		klog.Infof("healthyDevices: %#v", healthyDevicesFromCheckpoint)
+	}
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	needed := required
@@ -536,27 +616,43 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 	// This can happen if a container restarts for example.
 	devices := m.podDevices.containerDevices(podUID, contName, resource)
 	if devices != nil {
-		klog.V(3).InfoS("Found pre-allocated devices for resource on pod", "resourceName", resource, "containerName", contName, "podUID", string(podUID), "devices", devices.List())
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: Found pre-allocated devices for resource on pod, resourceName:%#v containerName:%#v podUID:%#v devices:%#v", resource, contName, string(podUID), devices.List())
 		needed = needed - devices.Len()
 		// A pod's resource is not expected to change once admitted by the API server,
 		// so just fail loudly here. We can revisit this part if this no longer holds.
 		if needed != 0 {
+			klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Needed !=0")
+			klog.Infof("swsehgal:cm: devicemgr: mgr.go: pod %q container %q changed request for resource %q from %d to %d", string(podUID), contName, resource, devices.Len(), required)
 			return nil, fmt.Errorf("pod %q container %q changed request for resource %q from %d to %d", string(podUID), contName, resource, devices.Len(), required)
 		}
 	}
+	healthyDevices, registered := m.healthyDevices[resource]
+
+	// Check if resource registered with devicemanager
+	if !registered {
+		klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Health check 2, m.healthyDevices :%#v", m.healthyDevices)
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: can't allocate unregistered device 2 %s", resource)
+		return nil, fmt.Errorf("can't allocate unregistered device %s", resource)
+	}
+
+	// Check if registered resource are healthy
+	if healthyDevices.Len() == 0 {
+		return nil, fmt.Errorf("can't allocate unhealthy devices %s", resource)
+	}
+
+	klog.Infof("healthyDevices: %#v", healthyDevices)
+
 	if needed == 0 {
+		klog.InfoS("swsehgal:cm: devicemgr: mgr.go:Needed ==0")
 		// No change, no work.
 		return nil, nil
 	}
-	klog.V(3).InfoS("Need devices to allocate for pod", "deviceNumber", needed, "resourceName", resource, "podUID", string(podUID), "containerName", contName)
-	// Check if resource registered with devicemanager
-	if _, ok := m.healthyDevices[resource]; !ok {
-		return nil, fmt.Errorf("can't allocate unregistered device %s", resource)
-	}
+	klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Need devices to allocate for pod", "deviceNumber", needed, "resourceName", resource, "podUID", string(podUID), "containerName", contName)
 
 	// Declare the list of allocated devices.
 	// This will be populated and returned below.
 	allocated := sets.NewString()
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Health check allocated:%#v ", allocated)
 
 	// Create a closure to help with device allocation
 	// Returns 'true' once no more devices need to be allocated.
@@ -574,49 +670,67 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 
 	// Needs to allocate additional devices.
 	if m.allocatedDevices[resource] == nil {
+		klog.InfoS("swsehgal:cm: devicemgr: mgr.go: m.allocatedDevices[resource] is nil")
 		m.allocatedDevices[resource] = sets.NewString()
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: Additional devices to be allocated,  m.allocatedDevices[resource]: %#v", m.allocatedDevices[resource])
 
 	// Allocates from reusableDevices list first.
 	if allocateRemainingFrom(reusableDevices) {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFrom, reusableDevices:%#v allocated:%#v", reusableDevices, allocated)
 		return allocated, nil
 	}
 
 	// Gets Devices in use.
 	devicesInUse := m.allocatedDevices[resource]
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: devicesInUse :%#v", devicesInUse)
 	// Gets Available devices.
 	available := m.healthyDevices[resource].Difference(devicesInUse)
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: available:%#v", available)
 	if available.Len() < needed {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: available.Len() < needed, needed:%#v", needed)
 		return nil, fmt.Errorf("requested number of devices unavailable for %s. Requested: %d, Available: %d", resource, needed, available.Len())
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: available.Len() > needed, available.Len():%#v needed:%#v", available.Len(), needed)
 
 	// Filters available Devices based on NUMA affinity.
 	aligned, unaligned, noAffinity := m.filterByAffinity(podUID, contName, resource, available)
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: m.filterByAffinity podUID::%#v  contName:%#v resource:%#v available:%#v", podUID, contName, resource, available)
 
 	// If we can allocate all remaining devices from the set of aligned ones, then
 	// give the plugin the chance to influence which ones to allocate from that set.
 	if needed < aligned.Len() {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: needed < aligned.Len(): needed:%#v aligned.Len():%#v", needed, aligned.Len())
 		// First allocate from the preferred devices list (if available).
 		preferred, err := m.callGetPreferredAllocationIfAvailable(podUID, contName, resource, aligned.Union(allocated), allocated, required)
 		if err != nil {
 			return nil, err
 		}
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: callGetPreferredAllocationIfAvailable, preferred:%#v", preferred)
+
 		if allocateRemainingFrom(preferred.Intersection(aligned)) {
-			return allocated, nil
-		}
-		// Then fallback to allocate from the aligned set if no preferred list
-		// is returned (or not enough devices are returned in that list).
-		if allocateRemainingFrom(aligned) {
+			klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFrom(preferred.Intersection(aligned)) allocating from preferred list preferred: %#v aligned: %#v allocated:%#v", preferred, aligned, allocated)
 			return allocated, nil
 		}
 
+		// Then fallback to allocate from the aligned set if no preferred list
+		// is returned (or not enough devices are returned in that list).
+		if allocateRemainingFrom(aligned) {
+			klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFromfrom the aligned set if no preferred list is returned)", "aligned: %#v allocated :%#v", aligned, allocated)
+			return allocated, nil
+		}
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: error returned: unexpectedly allocated less resources than required. Requested: %d, Got: %d", required, required-needed)
+
 		return nil, fmt.Errorf("unexpectedly allocated less resources than required. Requested: %d, Got: %d", required, required-needed)
 	}
+
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: needed >= aligned.Len(), needed: %#v aligned.Len(): %#v ", needed, aligned.Len())
 
 	// If we can't allocate all remaining devices from the set of aligned ones,
 	// then start by first allocating all of the  aligned devices (to ensure
 	// that the alignment guaranteed by the TopologyManager is honored).
 	if allocateRemainingFrom(aligned) {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFromfrom the aligned set if no preferred list is returned), aligned: %#v allocated: %#v ", aligned, allocated)
 		return allocated, nil
 	}
 
@@ -626,7 +740,10 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 	if err != nil {
 		return nil, err
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: callGetPreferredAllocationIfAvailable on remaining, preferred  podUID: %#v  contName:%#v resource: %#v available: %#v available.Union(allocated): %#v allocated: %#v  required: %#v", podUID, contName, resource, available, available.Union(allocated), allocated, required)
+
 	if allocateRemainingFrom(preferred.Intersection(available)) {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFrom(preferred.Intersection(available)) allocating from available list aligned: %#v allocated: %#v  preferred: %#v", aligned, allocated, preferred)
 		return allocated, nil
 	}
 
@@ -634,18 +751,23 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 	// return a large enough one), then fall back to allocating the remaining
 	// devices from the 'unaligned' and 'noAffinity' sets.
 	if allocateRemainingFrom(unaligned) {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFrom(unaligned) allocating from unaligned list unaligned: %#v allocated: %#v  preferred: %#v", unaligned, allocated, preferred)
 		return allocated, nil
 	}
 	if allocateRemainingFrom(noAffinity) {
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateRemainingFrom(noAffinity) allocating from noAffinity list noAffinity: %#v allocated: %#v  preferred: %#v", noAffinity, allocated, preferred)
 		return allocated, nil
 	}
-
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: error returnedunexpectedly allocated less resources than required. Requested: %d, Got: %d", required, required-needed)
 	return nil, fmt.Errorf("unexpectedly allocated less resources than required. Requested: %d, Got: %d", required, required-needed)
 }
 
 func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, available sets.String) (sets.String, sets.String, sets.String) {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: In filterByAffinity  podUID: %#v  contName: %#v resource: %#v available: %#v", podUID, contName, resource, available)
 	// If alignment information is not available, just pass the available list back.
 	hint := m.topologyAffinityStore.GetAffinity(podUID, contName)
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: hint: %#v ", hint)
+
 	if !m.deviceHasTopologyAlignment(resource) || hint.NUMANodeAffinity == nil {
 		return sets.NewString(), sets.NewString(), available
 	}
@@ -671,13 +793,14 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
 			perNodeDevices[int(node.ID)].Insert(d)
 		}
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: perNodeDevices: %#v ", perNodeDevices)
 
 	// Get a flat list of all of the nodes associated with available devices.
 	var nodes []int
 	for node := range perNodeDevices {
 		nodes = append(nodes, node)
 	}
-
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: before sorting nodes: %#v ", nodes)
 	// Sort the list of nodes by:
 	// 1) Nodes contained in the 'hint's affinity set
 	// 2) Nodes not contained in the 'hint's affinity set
@@ -706,6 +829,7 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
 		// Otherwise both nodes[i] and nodes[j] are real NUMA nodes that are not in the 'hint's' affinity list.
 		return perNodeDevices[nodes[i]].Len() < perNodeDevices[nodes[j]].Len()
 	})
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: after sorting nodes: %#v ", nodes)
 
 	// Generate three sorted lists of devices. Devices in the first list come
 	// from valid NUMA Nodes contained in the affinity mask. Devices in the
@@ -735,7 +859,7 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
 			}
 		}
 	}
-
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: returning fromAffinity: %#v  notFromAffinity: %#v  withoutTopology: %#v ", fromAffinity, notFromAffinity, withoutTopology)
 	// Return all three lists containing the full set of devices across them.
 	return sets.NewString(fromAffinity...), sets.NewString(notFromAffinity...), sets.NewString(withoutTopology...)
 }
@@ -745,6 +869,7 @@ func (m *ManagerImpl) filterByAffinity(podUID, contName, resource string, availa
 // for each new device resource requirement, processes their AllocateResponses,
 // and updates the cached containerDevices on success.
 func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Container, devicesToReuse map[string]sets.String) error {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: allocateContainerResources: pod: %s; container: %s,devicesToReuse: %#v", pod.Name, container.Name, devicesToReuse)
 	podUID := string(pod.UID)
 	contName := container.Name
 	allocatedDevicesUpdated := false
@@ -756,20 +881,24 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 	for k, v := range container.Resources.Limits {
 		resource := string(k)
 		needed := int(v.Value())
-		klog.V(3).InfoS("Looking for needed resources", "needed", needed, "resourceName", resource)
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: Looking for needed resources needed: %v resourceName: %v", needed, resource)
 		if !m.isDevicePluginResource(resource) {
+			klog.InfoS("swsehgal:cm: devicemgr: mgr.go: not a device plugin resource")
 			continue
 		}
 		// Updates allocatedDevices to garbage collect any stranded resources
 		// before doing the device plugin allocation.
 		if !allocatedDevicesUpdated {
+			klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Calling UpdateAllocatedDevices")
 			m.UpdateAllocatedDevices()
 			allocatedDevicesUpdated = true
 		}
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: Calling devicesToAllocate: podUID: %v, contName: %v, resource: %v, needed: %v, devicesToReuse[resource]: %v", podUID, contName, resource, needed, devicesToReuse[resource])
 		allocDevices, err := m.devicesToAllocate(podUID, contName, resource, needed, devicesToReuse[resource])
 		if err != nil {
 			return err
 		}
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: called: devicesToAllocate: allocDevices: %v", allocDevices)
 		if allocDevices == nil || len(allocDevices) <= 0 {
 			continue
 		}
@@ -802,7 +931,7 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		devs := allocDevices.UnsortedList()
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
-		klog.V(3).InfoS("Making allocation request for device plugin", "devices", devs, "resourceName", resource)
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: Making allocation request for device plugin devices: %v resourceName: %v", devs, resource)
 		resp, err := eI.e.allocate(devs)
 		metrics.DevicePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 		if err != nil {
@@ -819,6 +948,8 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		}
 
 		allocDevicesWithNUMA := checkpoint.NewDevicesPerNUMA()
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: checkpoint.NewDevicesPerNUMA called: allocDevicesWithNUMA: %v", allocDevicesWithNUMA)
+
 		// Update internal cached podDevices state.
 		m.mutex.Lock()
 		for dev := range allocDevices {
@@ -832,7 +963,9 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 			}
 		}
 		m.mutex.Unlock()
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: before inserting to m.podDevices: %v", m.podDevices)
 		m.podDevices.insert(podUID, contName, resource, allocDevicesWithNUMA, resp.ContainerResponses[0])
+		klog.Infof("swsehgal:cm: devicemgr: mgr.go: after inserting to m.podDevices: %v", m.podDevices)
 	}
 
 	if needsUpdateCheckpoint {
@@ -858,6 +991,7 @@ func (m *ManagerImpl) checkPodActive(pod *v1.Pod) bool {
 // for the passed-in <pod, container> and returns its DeviceRunContainerOptions
 // for the found one. An empty struct is returned in case no cached state is found.
 func (m *ManagerImpl) GetDeviceRunContainerOptions(pod *v1.Pod, container *v1.Container) (*DeviceRunContainerOptions, error) {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: GetDeviceRunContainerOptions: pod: %s; container: %s", pod.Name, container.Name)
 	podUID := string(pod.UID)
 	contName := container.Name
 	needsReAllocate := false
@@ -884,11 +1018,16 @@ func (m *ManagerImpl) GetDeviceRunContainerOptions(pod *v1.Pod, container *v1.Co
 		}
 	}
 	if needsReAllocate {
-		klog.V(2).InfoS("Needs to re-allocate device plugin resources for pod", "pod", klog.KObj(pod), "containerName", container.Name)
+		klog.InfoS("swsehgal:cm: devicemgr: mgr.go: Needs to re-allocate device plugin resources for pod", "pod", klog.KObj(pod), "containerName", container.Name)
+		klog.InfoS("swsehgal:cm: Calling Allocate")
+
 		if err := m.Allocate(pod, container); err != nil {
 			return nil, err
 		}
 	}
+	klog.Infof("swsehgal:cm:", "m.podDevices: %v", m.podDevices)
+	klog.Infof("swsehgal:cm: m.podDevices: deviceRunContainerOptions(string(pod.UID): %#v, container.Name): %#v", m.podDevices.deviceRunContainerOptions(string(pod.UID), container.Name), container.Name)
+
 	return m.podDevices.deviceRunContainerOptions(string(pod.UID), container.Name), nil
 }
 
@@ -904,7 +1043,7 @@ func (m *ManagerImpl) callPreStartContainerIfNeeded(podUID, contName, resource s
 
 	if eI.opts == nil || !eI.opts.PreStartRequired {
 		m.mutex.Unlock()
-		klog.V(4).InfoS("Plugin options indicate to skip PreStartContainer for resource", "resourceName", resource)
+		klog.InfoS("Plugin options indicate to skip PreStartContainer for resource", "resourceName", resource)
 		return nil
 	}
 
@@ -916,7 +1055,7 @@ func (m *ManagerImpl) callPreStartContainerIfNeeded(podUID, contName, resource s
 
 	m.mutex.Unlock()
 	devs := devices.UnsortedList()
-	klog.V(4).InfoS("Issuing a PreStartContainer call for container", "containerName", contName, "podUID", string(podUID))
+	klog.InfoS("Issuing a PreStartContainer call for container", "containerName", contName, "podUID", string(podUID))
 	_, err := eI.e.preStartContainer(devs)
 	if err != nil {
 		return fmt.Errorf("device plugin PreStartContainer rpc failed with err: %v", err)
@@ -934,12 +1073,12 @@ func (m *ManagerImpl) callGetPreferredAllocationIfAvailable(podUID, contName, re
 	}
 
 	if eI.opts == nil || !eI.opts.GetPreferredAllocationAvailable {
-		klog.V(4).InfoS("Plugin options indicate to skip GetPreferredAllocation for resource", "resourceName", resource)
+		klog.InfoS("Plugin options indicate to skip GetPreferredAllocation for resource", "resourceName", resource)
 		return nil, nil
 	}
 
 	m.mutex.Unlock()
-	klog.V(4).InfoS("Issuing a GetPreferredAllocation call for container", "containerName", contName, "podUID", string(podUID))
+	klog.InfoS("Issuing a GetPreferredAllocation call for container", "containerName", contName, "podUID", string(podUID))
 	resp, err := eI.e.getPreferredAllocation(available.UnsortedList(), mustInclude.UnsortedList(), size)
 	m.mutex.Lock()
 	if err != nil {
@@ -956,6 +1095,7 @@ func (m *ManagerImpl) callGetPreferredAllocationIfAvailable(podUID, contName, re
 // the allocated capacity. This allows pods that have already been scheduled on
 // the node to pass GeneralPredicates admission checking even upon device plugin failure.
 func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulerframework.NodeInfo) {
+	klog.InfoS("swsehgal: In sanitizeNodeAllocatable")
 	var newAllocatableResource *schedulerframework.Resource
 	allocatableResource := node.Allocatable
 	if allocatableResource.ScalarResources == nil {
@@ -964,6 +1104,7 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulerframework.NodeInfo)
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+	klog.InfoS("swsehgal: m.allocatedDevices: %#v", m.allocatedDevices)
 	for resource, devices := range m.allocatedDevices {
 		needed := devices.Len()
 		quant, ok := allocatableResource.ScalarResources[v1.ResourceName(resource)]
@@ -977,6 +1118,7 @@ func (m *ManagerImpl) sanitizeNodeAllocatable(node *schedulerframework.NodeInfo)
 		}
 		newAllocatableResource.ScalarResources[v1.ResourceName(resource)] = int64(needed)
 	}
+	klog.Infof("swsehgal: newAllocatableResource: %#v", newAllocatableResource)
 	if newAllocatableResource != nil {
 		node.Allocatable = newAllocatableResource
 	}
@@ -1000,12 +1142,13 @@ func (m *ManagerImpl) GetAllocatableDevices() ResourceDeviceInstances {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	resp := m.allDevices.Filter(m.healthyDevices)
-	klog.V(4).InfoS("GetAllocatableDevices", "known", len(m.allDevices), "allocatable", len(resp))
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: GetAllocatableDevices: known: %#v allocatable:%#v", len(m.allDevices), len(resp))
 	return resp
 }
 
 // GetDevices returns the devices used by the specified container
 func (m *ManagerImpl) GetDevices(podUID, containerName string) ResourceDeviceInstances {
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: GetDevices", "known : %#v  podUID: %#v containerName: %#v", len(m.allDevices), podUID, containerName)
 	return m.podDevices.getContainerDevices(podUID, containerName)
 }
 
@@ -1013,10 +1156,14 @@ func (m *ManagerImpl) GetDevices(podUID, containerName string) ResourceDeviceIns
 // depending on whether the node has been recreated. Absence of the checkpoint file strongly indicates the node
 // has been recreated.
 func (m *ManagerImpl) ShouldResetExtendedResourceCapacity() bool {
+	klog.InfoS("swsehgal:cm: devicemgr: mgr.go: ShouldResetExtendedResourceCapacity")
+
 	checkpoints, err := m.checkpointManager.ListCheckpoints()
 	if err != nil {
+		klog.InfoS("swsehgal:cm: devicemgr: mgr.go: err listcheckpoint")
 		return false
 	}
+	klog.Infof("swsehgal:cm: devicemgr: mgr.go: got checkpoints: %v", checkpoints)
 	return len(checkpoints) == 0
 }
 

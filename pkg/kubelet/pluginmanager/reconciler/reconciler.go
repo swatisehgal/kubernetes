@@ -112,6 +112,7 @@ func (rc *reconciler) getHandlers() map[string]cache.PluginHandler {
 }
 
 func (rc *reconciler) reconcile() {
+	klog.InfoS("swsehgal: kubelet: plugin manager reconciler: Reconciler")
 	// Unregisterations are triggered before registrations
 
 	// Ensure plugins that should be unregistered are unregistered.
@@ -126,7 +127,7 @@ func (rc *reconciler) reconcile() {
 			// with the same socket path but different timestamp.
 			for _, dswPlugin := range rc.desiredStateOfWorld.GetPluginsToRegister() {
 				if dswPlugin.SocketPath == registeredPlugin.SocketPath && dswPlugin.Timestamp != registeredPlugin.Timestamp {
-					klog.V(5).InfoS("An updated version of plugin has been found, unregistering the plugin first before reregistering", "plugin", registeredPlugin)
+					klog.InfoS("An updated version of plugin has been found, unregistering the plugin first before reregistering", "plugin", registeredPlugin)
 					unregisterPlugin = true
 					break
 				}
@@ -134,7 +135,7 @@ func (rc *reconciler) reconcile() {
 		}
 
 		if unregisterPlugin {
-			klog.V(5).InfoS("Starting operationExecutor.UnregisterPlugin", "plugin", registeredPlugin)
+			klog.InfoS("swsehgl: Starting operationExecutor.UnregisterPlugin", "plugin", registeredPlugin)
 			err := rc.operationExecutor.UnregisterPlugin(registeredPlugin, rc.actualStateOfWorld)
 			if err != nil &&
 				!goroutinemap.IsAlreadyExists(err) &&
@@ -144,7 +145,7 @@ func (rc *reconciler) reconcile() {
 				klog.ErrorS(err, "OperationExecutor.UnregisterPlugin failed", "plugin", registeredPlugin)
 			}
 			if err == nil {
-				klog.V(1).InfoS("OperationExecutor.UnregisterPlugin started", "plugin", registeredPlugin)
+				klog.InfoS("OperationExecutor.UnregisterPlugin started", "plugin", registeredPlugin)
 			}
 		}
 	}
@@ -152,7 +153,7 @@ func (rc *reconciler) reconcile() {
 	// Ensure plugins that should be registered are registered
 	for _, pluginToRegister := range rc.desiredStateOfWorld.GetPluginsToRegister() {
 		if !rc.actualStateOfWorld.PluginExistsWithCorrectTimestamp(pluginToRegister) {
-			klog.V(5).InfoS("Starting operationExecutor.RegisterPlugin", "plugin", pluginToRegister)
+			klog.InfoS("Starting operationExecutor.RegisterPlugin", "plugin", pluginToRegister)
 			err := rc.operationExecutor.RegisterPlugin(pluginToRegister.SocketPath, pluginToRegister.Timestamp, rc.getHandlers(), rc.actualStateOfWorld)
 			if err != nil &&
 				!goroutinemap.IsAlreadyExists(err) &&
@@ -161,7 +162,7 @@ func (rc *reconciler) reconcile() {
 				klog.ErrorS(err, "OperationExecutor.RegisterPlugin failed", "plugin", pluginToRegister)
 			}
 			if err == nil {
-				klog.V(1).InfoS("OperationExecutor.RegisterPlugin started", "plugin", pluginToRegister)
+				klog.InfoS("OperationExecutor.RegisterPlugin started", "plugin", pluginToRegister)
 			}
 		}
 	}

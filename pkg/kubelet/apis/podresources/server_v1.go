@@ -24,7 +24,7 @@ import (
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
 
-	"k8s.io/kubelet/pkg/apis/podresources/v1"
+	v1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
 // podResourcesServerV1alpha1 implements PodResourcesListerServer
@@ -48,6 +48,7 @@ func NewV1PodResourcesServer(podsProvider PodsProvider, devicesProvider DevicesP
 
 // List returns information about the resources assigned to pods on the node
 func (p *v1PodResourcesServer) List(ctx context.Context, req *v1.ListPodResourcesRequest) (*v1.ListPodResourcesResponse, error) {
+
 	metrics.PodResourcesEndpointRequestsTotalCount.WithLabelValues("v1").Inc()
 	metrics.PodResourcesEndpointRequestsListCount.WithLabelValues("v1").Inc()
 

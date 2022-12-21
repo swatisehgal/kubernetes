@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	utilstore "k8s.io/kubernetes/pkg/kubelet/util/store"
 	utilfs "k8s.io/kubernetes/pkg/util/filesystem"
@@ -100,6 +101,8 @@ func (manager *impl) RemoveCheckpoint(checkpointKey string) error {
 
 // ListCheckpoints returns the list of existing checkpoints.
 func (manager *impl) ListCheckpoints() ([]string, error) {
+	klog.InfoS("swsehgal:kubelet: checkpointmanager: mgr.go: ListCheckpoints")
+
 	manager.mutex.Lock()
 	defer manager.mutex.Unlock()
 	keys, err := manager.store.List()

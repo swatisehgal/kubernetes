@@ -95,10 +95,11 @@ func (c *client) Run() {
 
 // Disconnect is for closing gRPC connection between device manager and device plugin.
 func (c *client) Disconnect() error {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: Disconnect")
 	c.mutex.Lock()
 	if c.grpc != nil {
 		if err := c.grpc.Close(); err != nil {
-			klog.V(2).ErrorS(err, "Failed to close grcp connection", "resource", c.Resource())
+			klog.ErrorS(err, "Failed to close grcp connection", "resource", c.Resource())
 		}
 		c.grpc = nil
 	}
@@ -121,6 +122,8 @@ func (c *client) SocketPath() string {
 
 // dial establishes the gRPC communication with the registered device plugin. https://godoc.org/google.golang.org/grpc#Dial
 func dial(unixSocketPath string) (api.DevicePluginClient, *grpc.ClientConn, error) {
+	klog.InfoS("swsehgal: cm: devicemanager: plugin: dial")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

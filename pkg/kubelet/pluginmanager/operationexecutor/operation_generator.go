@@ -137,6 +137,7 @@ func (og *operationGenerator) GenerateRegisterPluginFunc(
 func (og *operationGenerator) GenerateUnregisterPluginFunc(
 	pluginInfo cache.PluginInfo,
 	actualStateOfWorldUpdater ActualStateOfWorldUpdater) func() error {
+	klog.InfoS("swsehgal: kubelet: pluginmanager: operationexecutor: GenerateUnregisterPluginFunc")
 
 	unregisterPluginFunc := func() error {
 		if pluginInfo.Handler == nil {
@@ -148,7 +149,7 @@ func (og *operationGenerator) GenerateUnregisterPluginFunc(
 
 		pluginInfo.Handler.DeRegisterPlugin(pluginInfo.Name)
 
-		klog.V(4).InfoS("DeRegisterPlugin called", "pluginName", pluginInfo.Name, "pluginHandler", pluginInfo.Handler)
+		klog.InfoS("swsehgal: kubelet: pluginmanager:DeRegisterPlugin called", "pluginName", pluginInfo.Name, "pluginHandler", pluginInfo.Handler)
 		return nil
 	}
 	return unregisterPluginFunc

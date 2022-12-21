@@ -252,6 +252,7 @@ func MachineInfo(nodeName string,
 	localStorageCapacityIsolation bool,
 ) Setter {
 	return func(ctx context.Context, node *v1.Node) error {
+		klog.InfoS("pkg: kubelet: nodestatus: setters: running MachineInfo")
 		// Note: avoid blindly overwriting the capacity in case opaque
 		//       resources are being advertised.
 		if node.Status.Capacity == nil {
@@ -265,6 +266,7 @@ func MachineInfo(nodeName string,
 		// TODO: Post NotReady if we cannot get MachineInfo from cAdvisor. This needs to start
 		// cAdvisor locally, e.g. for test-cmd.sh, and in integration test.
 		info, err := machineInfoFunc()
+		klog.Infof("swsehgal: pkg: kubelet: nodestatus: machineInfoFunc returns info: %#v", info)
 		if err != nil {
 			// TODO(roberthbailey): This is required for test-cmd.sh to pass.
 			// See if the test should be updated instead.
@@ -308,15 +310,16 @@ func MachineInfo(nodeName string,
 			//}
 
 			devicePluginCapacity, devicePluginAllocatable, removedDevicePlugins = devicePluginResourceCapacityFunc()
+			klog.Infof("swsehgal: pkg: kubelet: nodestatus: Got from devicePluginResourceCapacityFunc devicePluginCapacity: %#v, devicePluginAllocatable: %#v, removedDevicePlugins: %#v ", devicePluginCapacity, devicePluginAllocatable, removedDevicePlugins)
 			for k, v := range devicePluginCapacity {
 				if old, ok := node.Status.Capacity[k]; !ok || old.Value() != v.Value() {
-					klog.V(2).InfoS("Updated capacity for device plugin", "plugin", k, "capacity", v.Value())
+					klog.InfoS("swsehgal: pkg: kubelet: nodestatus: Updated capacity for device plugin", "plugin", k, "capacity", v.Value())
 				}
 				node.Status.Capacity[k] = v
 			}
 
 			for _, removedResource := range removedDevicePlugins {
-				klog.V(2).InfoS("Set capacity for removed resource to 0 on device removal", "device", removedResource)
+				klog.InfoS("swsehgal: pkg: kubelet: nodestatus: Set capacity for removed resource to 0 on device removal", "device", removedResource)
 				// Set the capacity of the removed resource to 0 instead of
 				// removing the resource from the node status. This is to indicate
 				// that the resource is managed by device plugin and had been
@@ -356,7 +359,7 @@ func MachineInfo(nodeName string,
 
 		for k, v := range devicePluginAllocatable {
 			if old, ok := node.Status.Allocatable[k]; !ok || old.Value() != v.Value() {
-				klog.V(2).InfoS("Updated allocatable", "device", k, "allocatable", v.Value())
+				klog.InfoS("swsehgal: pkg: kubelet: nodestatus: Updated allocatable", "device", k, "allocatable", v.Value())
 			}
 			node.Status.Allocatable[k] = v
 		}

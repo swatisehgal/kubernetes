@@ -642,6 +642,7 @@ func (cm *containerManagerImpl) Start(node *v1.Node,
 	}
 
 	// Starts device manager.
+	klog.InfoS("swsehgal:cm: Starting device manager")
 	if err := cm.deviceManager.Start(devicemanager.ActivePodsFunc(activePods), sourcesReady); err != nil {
 		return err
 	}
@@ -679,6 +680,7 @@ func (cm *containerManagerImpl) GetResources(pod *v1.Pod, container *v1.Containe
 }
 
 func (cm *containerManagerImpl) UpdatePluginResources(node *schedulerframework.NodeInfo, attrs *lifecycle.PodAdmitAttributes) error {
+	klog.InfoS("swsehgal:c:cm_linux UpdatePluginResources")
 	return cm.deviceManager.UpdatePluginResources(node, attrs)
 }
 
@@ -1007,6 +1009,7 @@ func (cm *containerManagerImpl) ShouldResetExtendedResourceCapacity() bool {
 }
 
 func (cm *containerManagerImpl) UpdateAllocatedDevices() {
+	klog.InfoS("swsehgal:cm: cm_linux: In UpdateAllocatedDevices")
 	cm.deviceManager.UpdateAllocatedDevices()
 }
 
