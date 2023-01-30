@@ -19,7 +19,6 @@ package e2enode
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -299,10 +298,10 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 		application pod fails with admission error.
 
 		   Breakdown of the steps implemented as part of this e2e test is as follows:
-		   1. Create sample device plugin with AUTO_REGISTER= false which means it
-		      waits for a client to connect to a unix socket exposed at
-		       `/var/lib/kubelet/device-plugins/registered` path.
-		   2. Trigger plugin registeration by connecting to the abovementioned unix socket.
+		   1. Create sample device plugin with AUTO_REGISTER= false which creates a
+		      directory at `/var/lib/kubelet/device-plugins/registered` and waits
+			  for a client to delete that directory.
+		   2. Trigger plugin registeration by deleting the abovementioned directory.
 		   3. Create a test pod requesting devices exposed by the device plugin.
 		   4. Stop kubelet.
 		   5. Remove pods using CRI to ensure new pods are created after kubelet restart.
@@ -346,15 +345,11 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 			go func() {
 				// Since autoregistration is disabled for the device plugin (as AUTO_REGISTER=false),
 				// device plugin registration needs to be triggerred manually.
-				// This is done by writing to the Unix socket exposed at:
+				// This is done by deleting directory created by sample device plugin:
 				// `/var/lib/kubelet/device-plugins/registered`.
 
 				triggerPath := devicePluginDir + "/registered"
-				conn, err := net.Dial("unix", triggerPath)
-				framework.ExpectNoError(err)
-				defer conn.Close()
-
-				_, err = conn.Write([]byte("registering"))
+				err := os.RemoveAll(triggerPath)
 				framework.ExpectNoError(err)
 			}()
 
