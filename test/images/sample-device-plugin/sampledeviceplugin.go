@@ -18,14 +18,12 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"k8s.io/klog/v2"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	plugin "k8s.io/kubernetes/pkg/kubelet/cm/devicemanager/plugin/v1beta1"
@@ -102,7 +100,6 @@ func main() {
 	}
 
 	socketPath := pluginSocksDir + "/dp." + fmt.Sprintf("%d", time.Now().Unix())
-	triggerPath := pluginSocksDir + "/registered"
 
 	dp1 := plugin.NewDevicePluginStub(devs, socketPath, resourceName, false, false)
 	if err := dp1.Start(); err != nil {
@@ -112,32 +109,62 @@ func main() {
 	dp1.SetAllocFunc(stubAllocFunc)
 
 	if !autoRegister {
-		l, err := net.Listen("unix", triggerPath)
-		klog.Infof("Started Listening at %s", triggerPath)
+		triggerPath := pluginSocksDir + "/registered"
+
+		klog.Infof("triggerPath: %v", triggerPath)
+
+		err := os.Mkdir(triggerPath, os.ModePerm)
 		if err != nil {
+			klog.Errorf("Directory creation %s failed: %v ", triggerPath, err)
 			panic(err)
 		}
-		defer l.Close()
+		klog.InfoS("Directory created successfully")
 
-		sigc := make(chan os.Signal, 1)
-		signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
-		go func(ln net.Listener, c chan os.Signal) {
-			sig := <-c
-			klog.Infof("Received termination signal %s: shutting down.", sig)
-			ln.Close()
-			os.Exit(0)
-		}(l, sigc)
-
-		klog.InfoS("Starting to accept connections")
-		// Accept new connections
-		conn, err := l.Accept()
+		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
+			klog.Errorf("Watcher creation failed: %v ", err)
+			panic(err)
+		}
+		defer watcher.Close()
+		updateCh := make(chan bool)
+		defer close(updateCh)
+		go func() {
+
+			klog.Infof("Starting go routine")
+			for {
+				klog.Infof("Waiting for a file event")
+
+				select {
+				case event, ok := <-watcher.Events:
+					if !ok {
+						return
+					}
+					klog.Infof("%s %s\n", event.Name, event.Op)
+					switch {
+					case event.Op&fsnotify.Remove == fsnotify.Remove:
+						klog.Infof("Delete:  %s: %s", event.Op, event.Name)
+						updateCh <- true
+					}
+				case err, ok := <-watcher.Errors:
+					if !ok {
+						return
+					}
+					klog.Errorf("error: %w", err)
+					panic(err)
+				}
+			}
+		}()
+
+		err = watcher.Add(triggerPath)
+		if err != nil {
+			klog.Errorf("Delete failed for %s: %w", triggerPath, err)
 			panic(err)
 		}
 
-		defer conn.Close()
+		klog.InfoS("Waiting for directory to be deleted")
+		<-updateCh
+		klog.InfoS("Got event: directory was Deleted")
 		klog.InfoS("Client connected!")
-
 	}
 	if err := dp1.Register(pluginapi.KubeletSocket, resourceName, pluginapi.DevicePluginPath); err != nil {
 		panic(err)
