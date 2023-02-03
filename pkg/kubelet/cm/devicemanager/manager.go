@@ -535,6 +535,8 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 	// Gets list of devices that have already been allocated.
 	// This can happen if a container restarts for example.
 	devices := m.podDevices.containerDevices(podUID, contName, resource)
+	klog.InfoS("Devices from checkpoint file", "devices", devices.List())
+
 	if devices != nil {
 		klog.V(3).InfoS("Found pre-allocated devices for resource on pod", "resourceName", resource, "containerName", contName, "podUID", string(podUID), "devices", devices.List())
 		needed = needed - devices.Len()
@@ -552,10 +554,17 @@ func (m *ManagerImpl) devicesToAllocate(podUID, contName, resource string, requi
 	if !hasRegistered {
 		return nil, fmt.Errorf("can't allocate unregistered device %s", resource)
 	}
+	klog.InfoS("Check Devices from checkpoint file", "devices", devices.List())
+	klog.InfoS("Check Devices from checkpoint file", "healthyDevices", healthyDevices.List())
 
-	// Check if registered resource has healthy devices
-	if healthyDevices.Len() == 0 {
-		return nil, fmt.Errorf("can't allocate unhealthy devices %s", resource)
+	// Check if registered resource has enough healthy devices
+	if healthyDevices.Len() < devices.Len() {
+		return nil, fmt.Errorf("not enough healthy devices; can't allocate unhealthy devices %s", resource)
+	}
+
+	// Check if all the previously allocated devices are still healthy
+	if !healthyDevices.IsSuperset(devices) {
+		return nil, fmt.Errorf("previously allocated devices are now unhealthy; can't allocate unhealthy devices %s", resource)
 	}
 
 	if needed == 0 {
