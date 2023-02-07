@@ -48,6 +48,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 )
 
 const (
@@ -321,11 +322,12 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 		// this test wants to reproduce what happened in https://github.com/kubernetes/kubernetes/issues/109595
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			ginkgo.By("Wait for node to be ready")
-			gomega.Eventually(func() bool {
-				nodes, err := e2enode.TotalReady(ctx, f.ClientSet)
-				framework.ExpectNoError(err)
-				return nodes == 1
-			}, time.Minute, time.Second).Should(gomega.BeTrue())
+			// gomega.Eventually(ctx, func(ctx context.Context) bool {
+			// 	nodes, err := e2enode.TotalReady(ctx, f.ClientSet)
+			// 	framework.ExpectNoError(err)
+			// 	return nodes == 1
+			// }, time.Minute, time.Second).Should(gomega.BeTrue())
+			gomega.Eventually(ctx, e2enode.TotalReady, f.ClientSet).WithTimeout(time.Minute).Should(gomega.BeIdenticalTo(1))
 
 			ginkgo.By("Scheduling a sample device plugin pod")
 			data, err := e2etestfiles.Read(SampleDevicePluginControlRegistrationDSYAML)
@@ -349,6 +351,7 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 				// This is done by writing to the Unix socket exposed at:
 				// `/var/lib/kubelet/device-plugins/registered`.
 
+				defer ginkgo.GinkgoRecover()
 				triggerPath := devicePluginDir + "/registered"
 				conn, err := net.Dial("unix", triggerPath)
 				framework.ExpectNoError(err)
@@ -359,15 +362,20 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 			}()
 
 			ginkgo.By("Waiting for devices to become available on the local node")
-			gomega.Eventually(func() bool {
-				node, ready := getLocalTestNode(ctx, f)
-				return ready && numberOfSampleResources(node) > 0
-			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrue())
+			// gomega.Eventually(ctx, func(ctx context.Context) bool {
+			// 	node, ready := getLocalTestNode(ctx, f)
+			// 	return ready && numberOfSampleResources(node) > 0
+			// }, 5*time.Minute, framework.Poll).Should(gomega.BeTrue())
+			gomega.Eventually(ctx, framework.
+				RetryNotFound(f.ClientSet.CoreV1().Nodes().Get(ctx, framework.TestContext.NodeName, metav1.GetOptions{}))).
+				WithTimeout(5 * time.Minute).
+				Should(BeRunning())
+
 			framework.Logf("Successfully created device plugin pod")
 
 			devsLen := int64(deviceCount) // shortcut
 			ginkgo.By("Waiting for the resource exported by the sample device plugin to become available on the local node")
-			gomega.Eventually(func() bool {
+			gomega.Eventually(ctx, func(ctx context.Context) bool {
 				node, ready := getLocalTestNode(ctx, f)
 				return ready &&
 					numberOfDevicesCapacity(node, resourceName) == devsLen &&
@@ -411,7 +419,7 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 
 			ginkgo.By("waiting for the kubelet to be ready again")
 			// Wait for the Kubelet to be ready.
-			gomega.Eventually(func() bool {
+			gomega.Eventually(ctx, func(ctx context.Context) bool {
 				nodes, err := e2enode.TotalReady(ctx, f.ClientSet)
 				framework.ExpectNoError(err)
 				return nodes == 1
@@ -434,7 +442,7 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 			// and registration wasn't triggered manually (by writing to the unix socket exposed at
 			// `/var/lib/kubelet/device-plugins/registered`). Because of this, the capacity and allocatable corresponding
 			// to the resource exposed by the device plugin should be zero.
-			gomega.Eventually(func() bool {
+			gomega.Eventually(ctx, func(ctx context.Context) bool {
 				node, ready := getLocalTestNode(ctx, f)
 				return ready &&
 					numberOfDevicesCapacity(node, resourceName) == 0 &&
@@ -446,7 +454,7 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 			// NOTE: The device plugin won't re-register again and this is intentional.
 			// Because of this, the testpod (requesting a device) should fail with an admission error.
 
-			gomega.Eventually(ctx, func() bool {
+			gomega.Eventually(ctx, func(ctx context.Context) bool {
 				tmpPod, err = e2epod.NewPodClient(f).Get(ctx, testPod.Name, metav1.GetOptions{})
 				framework.ExpectNoError(err)
 
@@ -489,7 +497,7 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 			}
 
 			ginkgo.By("Waiting for devices to become unavailable on the local node")
-			gomega.Eventually(func() bool {
+			gomega.Eventually(ctx, func(ctx context.Context) bool {
 				node, ready := getLocalTestNode(ctx, f)
 				return ready && numberOfSampleResources(node) <= 0
 			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrue())
@@ -606,4 +614,21 @@ func makeBusyboxDeviceRequiringPod(resourceName, cmd string) *v1.Pod {
 			}},
 		},
 	}
+}
+
+// BeRunning verifies that a device pod starts running. It's a permanent
+// failure when the pod enters some other permanent phase.
+func BeRunning() types.GomegaMatcher {
+	return gomega.And(
+		// This additional matcher checks for the final error condition.
+		gcustom.MakeMatcher(func(pod *v1.Pod) (bool, error) {
+			switch pod.Status.Phase {
+			case v1.PodFailed, v1.PodSucceeded:
+				return false, gomega.StopTrying(fmt.Sprintf("Expected pod to reach phase %q, got final phase %q instead.", v1.PodRunning, pod.Status.Phase))
+			default:
+				return true, nil
+			}
+		}),
+		BeInPhase(v1.PodRunning),
+	)
 }
