@@ -367,10 +367,10 @@ var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeatur
 			// 	return ready && numberOfSampleResources(node) > 0
 			// }, 5*time.Minute, framework.Poll).Should(gomega.BeTrue())
 			gomega.Eventually(ctx, framework.
-				RetryNotFound(f.ClientSet.CoreV1().Nodes().Get(ctx, framework.TestContext.NodeName, metav1.GetOptions{}))).
+				RetryNotFound(framework.GetObject(f.ClientSet.CoreV1().Nodes().Get(ctx, framework.TestContext.NodeName, metav1.GetOptions{}))).
 				WithTimeout(5 * time.Minute).
-				Should(BeRunning())
-
+				Should(BeReady())
+			}
 			framework.Logf("Successfully created device plugin pod")
 
 			devsLen := int64(deviceCount) // shortcut
@@ -615,10 +615,65 @@ func makeBusyboxDeviceRequiringPod(resourceName, cmd string) *v1.Pod {
 		},
 	}
 }
+/*
 
+// IsNodeSchedulable returns true if:
+// 1) doesn't have "unschedulable" field set
+// 2) it also returns true from IsNodeReady
+func IsNodeSchedulable(node *v1.Node) bool {
+	if node == nil {
+		return false
+	}
+	return !node.Spec.Unschedulable && IsNodeReady(node)
+}
+
+// IsNodeReady returns true if:
+// 1) it's Ready condition is set to true
+// 2) doesn't have NetworkUnavailable condition set to true
+func IsNodeReady(node *v1.Node) bool {
+	nodeReady := IsConditionSetAsExpected(node, v1.NodeReady, true)
+	networkReady := isConditionUnset(node, v1.NodeNetworkUnavailable) ||
+		IsConditionSetAsExpectedSilent(node, v1.NodeNetworkUnavailable, false)
+	return nodeReady && networkReady
+}
+
+// gomega.Eventually(ctx, func(ctx context.Context) bool {
+			// 	node, ready := getLocalTestNode(ctx, f)
+			// 	return ready && numberOfSampleResources(node) > 0
+			// }, 5*time.Minute, framework.Poll).Should(gomega.BeTrue())
+
+// IsNodeSchedulable returns true if:
+// 1) doesn't have "unschedulable" field set
+// 2) it also returns true from IsNodeReady
+func IsNodeSchedulable(node *v1.Node) bool {
+	if node == nil {
+		return false
+	}
+	return !node.Spec.Unschedulable && IsNodeReady(node)
+}
+*/
+
+
+/*
+func getLocalTestNode(ctx context.Context, f *framework.Framework) (*v1.Node, bool) {
+	node, err := f.ClientSet.CoreV1().Nodes().Get(ctx, framework.TestContext.NodeName, metav1.GetOptions{})
+	framework.ExpectNoError(err)
+	ready := e2enode.IsNodeReady(node)
+	schedulable := e2enode.IsNodeSchedulable(node)
+	framework.Logf("node %q ready=%v schedulable=%v", node.Name, ready, schedulable)
+	return node, ready && schedulable
+}
+*/
 // BeRunning verifies that a device pod starts running. It's a permanent
 // failure when the pod enters some other permanent phase.
-func BeRunning() types.GomegaMatcher {
+func BeReady() types.GomegaMatcher {
+	node, ready := getLocalTestNode(ctx, f)
+
+	ready := e2enode.IsNodeReady(node)
+	schedulable := e2enode.IsNodeSchedulable(node)
+
+	ready && numberOfSampleResources(node)>0
+
 	return gomega.And(
 		// This additional matcher checks for the final error condition.
 		gcustom.MakeMatcher(func(pod *v1.Pod) (bool, error) {
@@ -629,6 +684,6 @@ func BeRunning() types.GomegaMatcher {
 				return true, nil
 			}
 		}),
-		BeInPhase(v1.PodRunning),
+		BeReady(),
 	)
 }
