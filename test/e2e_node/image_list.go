@@ -67,6 +67,7 @@ var NodePrePullImageList = sets.NewString(
 	imageutils.GetE2EImage(imageutils.NodePerfNpbIs),
 	imageutils.GetE2EImage(imageutils.NodePerfTfWideDeep),
 	imageutils.GetE2EImage(imageutils.Etcd),
+	"quay.io/swsehgal/sample-device-plugin@sha256:f48e91a27b1b50f6131f715fdde483cb38b7dc75a600828a3e56bc2200133d64",
 )
 
 // updateImageAllowList updates the e2epod.ImagePrePullList with

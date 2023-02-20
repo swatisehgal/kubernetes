@@ -57,7 +57,7 @@ const (
 )
 
 // Serial because the test updates kubelet configuration.
-var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManager][NodeFeature:DeviceManager]", func() {
+var _ = SIGDescribe("Device Manager  [Serial] [Feature:DeviceManagerBug][NodeFeature:DeviceManager]", func() {
 	checkpointFullPath := filepath.Join(devicePluginDir, checkpointName)
 	f := framework.NewDefaultFramework("devicemanager-test")
 	f.NamespacePodSecurityEnforceLevel = admissionapi.LevelPrivileged
