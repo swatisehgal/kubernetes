@@ -27,6 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeletdevicepluginv1beta1 "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	kubeletpodresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
@@ -46,7 +47,6 @@ import (
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
-	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
 )
 
 type podDesc struct {
@@ -886,13 +886,21 @@ func getOnlineCPUs() (cpuset.CPUSet, error) {
 func setupKubeVirtDevicePluginOrFail(f *framework.Framework) *v1.Pod {
 	e2enode.WaitForNodeToBeReady(f.ClientSet, framework.TestContext.NodeName, 5*time.Minute)
 
+<<<<<<< HEAD
 	dp := getKubeVirtDevicePluginPod()
+=======
+	dp := getSampleDevicePluginPod(kubeletdevicepluginv1beta1.DevicePluginPath)
+>>>>>>> 92e00203e02 (e2e: node: unify sample device plugin utilities)
 	dp.Spec.NodeName = framework.TestContext.NodeName
 
 	ginkgo.By("Create KubeVirt device plugin pod")
 
+<<<<<<< HEAD
 	dpPod, err := f.ClientSet.CoreV1().Pods(metav1.NamespaceSystem).Create(context.TODO(), dp, metav1.CreateOptions{})
 	framework.ExpectNoError(err)
+=======
+	dpPod := e2epod.NewPodClient(f).CreateSync(ctx, dp)
+>>>>>>> 92e00203e02 (e2e: node: unify sample device plugin utilities)
 
 	if err = e2epod.WaitForPodCondition(f.ClientSet, metav1.NamespaceSystem, dp.Name, "Ready", 120*time.Second, testutils.PodRunningReady); err != nil {
 		framework.Logf("KubeVirt Pod %v took too long to enter running/ready: %v", dp.Name, err)
@@ -914,6 +922,7 @@ func teardownKubeVirtDevicePluginOrFail(f *framework.Framework, pod *v1.Pod) {
 	waitForAllContainerRemoval(pod.Name, pod.Namespace)
 }
 
+<<<<<<< HEAD
 func findKubeVirtResource(node *v1.Node) int64 {
 	framework.Logf("Node status allocatable: %v", node.Status.Allocatable)
 	for key, val := range node.Status.Allocatable {
@@ -958,6 +967,19 @@ func getKubeVirtDevicePluginPod() *v1.Pod {
 }
 
 func getPodResourcesMetrics() (e2emetrics.KubeletMetrics, error) {
+=======
+func waitForTopologyUnawareResources(ctx context.Context, f *framework.Framework) {
+	ginkgo.By(fmt.Sprintf("Waiting for %q resources to become available on the local node", defaultTopologyUnawareResourceName))
+
+	gomega.Eventually(ctx, func(ctx context.Context) bool {
+		node := getLocalNode(ctx, f)
+		resourceAmount := CountSampleDeviceAllocatable(node)
+		return resourceAmount > 0
+	}, 2*time.Minute, framework.Poll).Should(gomega.BeTrue())
+}
+
+func getPodResourcesMetrics(ctx context.Context) (e2emetrics.KubeletMetrics, error) {
+>>>>>>> 92e00203e02 (e2e: node: unify sample device plugin utilities)
 	// we are running out of good names, so we need to be unnecessarily specific to avoid clashes
 	ginkgo.By("getting Pod Resources metrics from the metrics API")
 	return e2emetrics.GrabKubeletMetricsWithoutProxy(framework.TestContext.NodeName+":10255", "/metrics")
