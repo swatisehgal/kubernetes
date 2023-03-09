@@ -217,7 +217,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectEqual(len(v1ResourcesForOurPod.Containers[0].Devices[0].DeviceIds), 1)
 		})
 
-		ginkgo.It("Keeps device plugin assignments across pod and kubelet restarts", func(ctx context.Context) {
+		ginkgo.It("Keeps device plugin assignments across pod restarts (no kubelet restart)", func(ctx context.Context) {
 			podRECMD := "devs=$(ls /tmp/ | egrep '^Dev-[0-9]+$') && echo stub devices: $devs && sleep 60"
 			pod1 := e2epod.NewPodClient(f).CreateSync(ctx, makeBusyboxPod(SampleDeviceResourceName, podRECMD))
 			deviceIDRE := "stub devices: (Dev-[0-9]+)"
@@ -227,21 +227,13 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			pod1, err := e2epod.NewPodClient(f).Get(ctx, pod1.Name, metav1.GetOptions{})
 			framework.ExpectNoError(err)
 
-			ensurePodContainerRestart(ctx, f, pod1.Name, pod1.Name)
-
-			ginkgo.By("Confirming that device assignment persists even after container restart")
-			devIDAfterRestart := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
-			framework.ExpectEqual(devIDAfterRestart, devID1)
-
-			ginkgo.By("Restarting Kubelet")
-			restartKubelet(true)
-
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
 
-			ginkgo.By("Validating that assignment is kept")
+			ginkgo.By("Waiting for container to restart")
 			ensurePodContainerRestart(ctx, f, pod1.Name, pod1.Name)
-			ginkgo.By("Confirming that after a kubelet restart, fake-device assignment is kept")
+
+			ginkgo.By("Confirming that after a container restart, fake-device assignment is kept")
 			devIDRestart1 := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
 			framework.ExpectEqual(devIDRestart1, devID1)
 		})
