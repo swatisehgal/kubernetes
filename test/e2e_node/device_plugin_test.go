@@ -238,7 +238,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectEqual(devIDRestart1, devID1)
 		})
 
-		ginkgo.It("Keeps device plugin assignments after the device plugin has been re-registered", func(ctx context.Context) {
+		ginkgo.It("Keeps device plugin assignments across kubelet restart after the device plugin has been re-registered", func(ctx context.Context) {
 			podRECMD := "devs=$(ls /tmp/ | egrep '^Dev-[0-9]+$') && echo stub devices: $devs && sleep 60"
 			pod1 := e2epod.NewPodClient(f).CreateSync(ctx, makeBusyboxPod(SampleDeviceResourceName, podRECMD))
 			deviceIDRE := "stub devices: (Dev-[0-9]+)"
@@ -264,9 +264,13 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Recreating the plugin pod")
 			devicePluginPod = e2epod.NewPodClient(f).CreateSync(ctx, dptemplate)
+			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, devicePluginPod.Name, devicePluginPod.Namespace, 1*time.Minute)
+			framework.ExpectNoError(err)
 
-			ginkgo.By("Confirming that after a kubelet and pod restart, fake-device assignment is kept")
-			ensurePodContainerRestart(ctx, f, pod1.Name, pod1.Name)
+			ginkgo.By("Confirming that after a kubelet restart, fake-device assignment is kept")
+			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, pod1.Name, f.Namespace.Name, 1*time.Minute)
+			framework.ExpectNoError(err)
+
 			devIDRestart1 := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
 			framework.ExpectEqual(devIDRestart1, devID1)
 
@@ -280,6 +284,8 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Creating another pod")
 			pod2 := e2epod.NewPodClient(f).CreateSync(ctx, makeBusyboxPod(SampleDeviceResourceName, podRECMD))
+			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, pod2.Name, f.Namespace.Name, 1*time.Minute)
+			framework.ExpectNoError(err)
 
 			ginkgo.By("Checking that pod got a different fake device")
 			devID2 := parseLog(ctx, f, pod2.Name, pod2.Name, deviceIDRE)
