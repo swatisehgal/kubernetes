@@ -254,6 +254,13 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
 
+			ginkgo.By("Waiting for the pod to fail with admission error as device plugin hasn't re-registered yet")
+			gomega.Eventually(ctx, getPod).
+				WithArguments(f, pod1.Name).
+				WithTimeout(time.Minute).
+				Should(HaveFailedWithAdmissionError(),
+					"the pod succeeded to start, when it should fail with the admission error")
+
 			ginkgo.By("Re-Register resources and delete the plugin pod")
 			gp := int64(0)
 			deleteOptions := metav1.DeleteOptions{
@@ -266,13 +273,6 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			devicePluginPod = e2epod.NewPodClient(f).CreateSync(ctx, dptemplate)
 			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, devicePluginPod.Name, devicePluginPod.Namespace, 1*time.Minute)
 			framework.ExpectNoError(err)
-
-			ginkgo.By("Confirming that after a kubelet restart, fake-device assignment is kept")
-			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, pod1.Name, f.Namespace.Name, 1*time.Minute)
-			framework.ExpectNoError(err)
-
-			devIDRestart1 := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
-			framework.ExpectEqual(devIDRestart1, devID1)
 
 			ginkgo.By("Waiting for resource to become available on the local node after re-registration")
 			gomega.Eventually(ctx, func() bool {
@@ -287,10 +287,10 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, pod2.Name, f.Namespace.Name, 1*time.Minute)
 			framework.ExpectNoError(err)
 
-			ginkgo.By("Checking that pod got a different fake device")
+			ginkgo.By("Checking that pod got a fake device")
 			devID2 := parseLog(ctx, f, pod2.Name, pod2.Name, deviceIDRE)
 
-			gomega.Expect(devID1).To(gomega.Not(gomega.Equal(devID2)))
+			gomega.Expect(devID2).To(gomega.Not(gomega.Equal("")))
 		})
 	})
 }
