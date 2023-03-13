@@ -274,6 +274,49 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 		})
 
 		/*
+			Test Description: Keeps device plugin assignments across kubelet restarts (no pod restart, no device plugin re-registration)
+			Rationale: 		  The aim is to explictly capture the kubelet restart scenario where the device plugin pod doesn't re-register
+							  itself to Kubelet. Since the device allocation information is recovered from the checkpoint file, it expected that the
+							  device will persist across kubelet restart.
+							  NOTE: The sleep interval is specified to be a large value (24h) to empahsize that this is strictly a kubelet restart
+							  test case and shouldn't be confused with container restart scenarios.
+			Steps:
+			1. Deploy Pod1 with a high sleep interval of 24h to prevent pod restart.
+			2. Determine the device allocated to the pod.
+			3. Ensure that the pod is allocated a device.
+			4. Restart Kubelet and wait for the node to be ready for scheduling.
+			5. Ensure that the node is schedulable.
+			6. Ensure that the Pod1 goes into Running state.
+			7. Determine the device allocated to the pod. The pod should keep the device it was allocated prior to kubelet restart.
+		*/
+		ginkgo.It("Keeps device plugin assignments across kubelet restarts (no pod restart, no device plugin re-registration)", func(ctx context.Context) {
+			podRECMD := fmt.Sprintf("devs=$(ls /tmp/ | egrep '^Dev-[0-9]+$') && echo stub devices: $devs && sleep %s", sleepIntervaltoEnsureNoPodRestart)
+			pod1 := e2epod.NewPodClient(f).CreateSync(ctx, makeBusyboxPod(SampleDeviceResourceName, podRECMD))
+			deviceIDRE := "stub devices: (Dev-[0-9]+)"
+			devID1, err := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
+			framework.ExpectNoError(err, "getting logs for pod %q", pod1.Name)
+
+			gomega.Expect(devID1).To(gomega.Not(gomega.Equal("")))
+
+			pod1, err = e2epod.NewPodClient(f).Get(ctx, pod1.Name, metav1.GetOptions{})
+			framework.ExpectNoError(err)
+
+			ginkgo.By("Restarting Kubelet")
+			restartKubelet(true)
+
+			ginkgo.By("Wait for node to be ready again")
+			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
+
+			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, pod1.Name, f.Namespace.Name, 1*time.Minute)
+			framework.ExpectNoError(err)
+
+			ginkgo.By("Confirming that after a kubelet restart, fake-device assignment is kept")
+			devIDRestart1, err := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
+			framework.ExpectNoError(err, "getting logs for pod %q", pod1.Name)
+			framework.ExpectEqual(devIDRestart1, devID1)
+		})
+
+		/*
 			Test Description: Keeps device plugin assignments after kubelet restart and device plugin has been re-registered (no pod restart)
 			Rationale: 		  The aim is to explicitly capture the kubelet restart scenario where the device plugin pod re-registers itself
 							  to Kubelet. Since the device allocation information is recovered from the checkpoint file, it expected that the
