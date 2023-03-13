@@ -269,7 +269,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			restartKubelet(true)
 
 			ginkgo.By("Wait for node to be ready again")
-			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
+			waitForNodeReady(ctx)
 
 			ginkgo.By("Re-Register resources and delete the plugin pod")
 			gp := int64(0)
