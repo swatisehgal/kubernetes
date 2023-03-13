@@ -264,7 +264,22 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			gomega.Expect(devID2).To(gomega.Not(gomega.Equal("")), "pod2 requested a device but started successfully without")
 		})
 
-		ginkgo.It("Keeps device plugin assignments after the device plugin has been re-registered", func(ctx context.Context) {
+		/*
+			Test Description: Keeps device plugin assignments after kubelet restart and device plugin has been re-registered (no pod restart)
+			Steps:
+			1. Deploy Pod1.
+			2. Determine the device allocated to the pod.
+			3. Ensure that the pod is allocated a device.
+			4. Restart Kubelet and wait for the node to be ready for scheduling.
+			5. Re-register device plugin.
+			6. Determine the device allocated to the pod. The pod should keep the device it was allocated prior to kubelet restart.
+			   NOTE: After kubelet restart, the device allocation information is recovered from the checkpoint file.
+			7. Ensure that the node capacity is updated with the expected quantity of resources.
+			8. Deploy another pod: Pod2.
+			9. Determine the device allocated to the pod.
+			10. Ensure that the pod is allocated a device different from that allocated to Pod1.
+		*/
+		ginkgo.It("Keeps device plugin assignments after kubelet restart and device plugin has been re-registered (no pod restart)", func(ctx context.Context) {
 			podRECMD := "devs=$(ls /tmp/ | egrep '^Dev-[0-9]+$') && echo stub devices: $devs && sleep 60"
 			pod1 := e2epod.NewPodClient(f).CreateSync(ctx, makeBusyboxPod(SampleDeviceResourceName, podRECMD))
 			deviceIDRE := "stub devices: (Dev-[0-9]+)"
@@ -293,8 +308,6 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			ginkgo.By("Recreating the plugin pod")
 			devicePluginPod = e2epod.NewPodClient(f).CreateSync(ctx, dptemplate)
 
-			ginkgo.By("Confirming that after a kubelet and pod restart, fake-device assignment is kept")
-			ensurePodContainerRestart(ctx, f, pod1.Name, pod1.Name)
 			devIDRestart1, err := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
 			framework.ExpectNoError(err, "getting logs for pod %q", pod1.Name)
 			framework.ExpectEqual(devIDRestart1, devID1)
