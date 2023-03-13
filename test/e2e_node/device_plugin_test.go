@@ -232,7 +232,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("Wait for node to be ready again")
-			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
+			waitForNodeReady(ctx)
 
 			ginkgo.By("Waiting for container to restart")
 			ensurePodContainerRestart(ctx, f, pod1.Name, pod1.Name)
