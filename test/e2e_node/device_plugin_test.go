@@ -286,7 +286,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			3. Ensure that the pod is allocated a device.
 			4. Restart Kubelet and wait for the node to be ready for scheduling.
 			5. Ensure that the node is schedulable.
-			6. Ensure that the Pod1 goes into Running state.
+			6. Since the application pod starts before the device plugin re-registers itself, the pod would fail at admission time.
 			7. Determine the device allocated to the pod. The pod should keep the device it was allocated prior to kubelet restart.
 		*/
 		ginkgo.It("Keeps device plugin assignments across kubelet restarts (no pod restart, no device plugin re-registration)", func(ctx context.Context) {
@@ -307,8 +307,12 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
 
-			err = e2epod.WaitTimeoutForPodRunningInNamespace(ctx, f.ClientSet, pod1.Name, f.Namespace.Name, 1*time.Minute)
-			framework.ExpectNoError(err)
+			ginkgo.By("Waiting for the pod to fail with admission error as device plugin hasn't re-registered yet")
+			gomega.Eventually(ctx, getPod).
+				WithArguments(f, pod1.Name).
+				WithTimeout(time.Minute).
+				Should(HaveFailedWithAdmissionError(),
+					"the pod succeeded to start, when it should fail with the admission error")
 
 			ginkgo.By("Confirming that after a kubelet restart, fake-device assignment is kept")
 			devIDRestart1, err := parseLog(ctx, f, pod1.Name, pod1.Name, deviceIDRE)
@@ -328,12 +332,16 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			2. Determine the device allocated to the pod.
 			3. Ensure that the pod is allocated a device.
 			4. Restart Kubelet and wait for the node to be ready for scheduling.
-			5. Re-register device plugin.
-			6. Determine the device allocated to the pod. The pod should keep the device it was allocated prior to kubelet restart.
-			7. Ensure that the node capacity is updated with the expected quantity of resources.
-			8. Deploy another pod: Pod2 with a high sleep interval of 24h to prevent pod restart.
-			9. Determine the device allocated to the pod.
-			10. Ensure that the pod is allocated a device different from that allocated to Pod1.
+			5. Since the application pod starts before the device plugin re-registers itself, the pod would fail at admission time.
+			6. Re-register device plugin.
+			7. Determine the device allocated to the pod. The pod should keep the device it was allocated prior to kubelet restart.
+			8. Ensure that the node capacity is updated with the expected quantity of resources.
+			9. Deploy another pod : Pod2 with a high sleep interval of 24h to prevent pod restart.
+			10. Determine the device allocated to the pod.
+			11. After the device plugin has re-registered, the list healthy devices is repopulated based on the devices discovered.
+			   Since Pod1 failed with admission error, the device allocated to Pod1 is also available to be allocated to other pods.
+			   So, once Pod2 is running we determine the device that was allocated it. As long as the device allocation succeeds the
+			   test should pass.
 		*/
 		ginkgo.It("Keeps device plugin assignments after kubelet restart and device plugin has been re-registered (no pod restart)", func(ctx context.Context) {
 			podRECMD := fmt.Sprintf("devs=$(ls /tmp/ | egrep '^Dev-[0-9]+$') && echo stub devices: $devs && sleep %s", sleepIntervaltoEnsureNoPodRestart)
@@ -352,6 +360,13 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
+
+			ginkgo.By("Waiting for the pod to fail with admission error as device plugin hasn't re-registered yet")
+			gomega.Eventually(ctx, getPod).
+				WithArguments(f, pod1.Name).
+				WithTimeout(time.Minute).
+				Should(HaveFailedWithAdmissionError(),
+					"the pod succeeded to start, when it should fail with the admission error")
 
 			ginkgo.By("Re-Register resources and delete the plugin pod")
 			gp := int64(0)
@@ -383,7 +398,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			devID2, err := parseLog(ctx, f, pod2.Name, pod2.Name, deviceIDRE)
 			framework.ExpectNoError(err, "getting logs for pod %q", pod2.Name)
 
-			gomega.Expect(devID1).To(gomega.Not(gomega.Equal(devID2)), "pod2 requested a device but started successfully without")
+			gomega.Expect(devID2).To(gomega.Not(gomega.Equal("")), "pod2 requested a device but started successfully without")
 		})
 	})
 }
