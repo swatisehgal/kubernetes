@@ -75,6 +75,11 @@ func stubAllocFunc(r *pluginapi.AllocateRequest, devs map[string]pluginapi.Devic
 	return &responses, nil
 }
 
+// stubAllocFunc creates and returns allocation response for the input allocate request
+func stubRegisterControlFunc() bool {
+	return false
+}
+
 func main() {
 	// respond to syscalls for termination
 	sigCh := make(chan os.Signal, 1)
@@ -105,9 +110,11 @@ func main() {
 
 	if registerControlFile = os.Getenv("REGISTER_CONTROL_FILE"); registerControlFile != "" {
 		autoregister = false
+		dp1.SetRegisterControlFunc(stubRegisterControlFunc)
 	}
+
 	if !autoregister {
-		go dp1.Watch(pluginapi.KubeletSocket, resourceName, pluginapi.DevicePluginPath, autoregister)
+		go dp1.Watch(pluginapi.KubeletSocket, resourceName, pluginapi.DevicePluginPath)
 
 		triggerPath := filepath.Dir(registerControlFile)
 
@@ -152,8 +159,7 @@ func main() {
 			panic(err)
 		}
 
-		go dp1.Watch(pluginapi.KubeletSocket, resourceName, pluginapi.DevicePluginPath, autoregister)
-
+		go dp1.Watch(pluginapi.KubeletSocket, resourceName, pluginapi.DevicePluginPath)
 		// Catch termination signals
 		select {
 		case sig := <-sigCh:
