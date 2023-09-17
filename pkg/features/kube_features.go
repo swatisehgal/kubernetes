@@ -131,6 +131,12 @@ const (
 	// Allow the usage of options to fine-tune the cpumanager policies.
 	CPUManagerPolicyOptions featuregate.Feature = "CPUManagerPolicyOptions"
 
+	// owner: @swatisehgal
+	// alpha: v1.29
+	//
+	// Allow the usage of CPU Manager static with different scopes (container or pod).
+	CPUManagerScope featuregate.Feature = "CPUManagerScope"
+
 	// owner: @andyzhangx
 	// alpha: v1.15
 	// beta: v1.21

@@ -74,6 +74,12 @@ const (
 	// PodTopologyManagerScope represents that
 	// topology policy is applied on a per-pod basis.
 	PodTopologyManagerScope = "pod"
+	// ContainerCPUManagerScope represents that
+	// CPU Manager policy is applied on a per-container basis.
+	ContainerCPUManagerScope = "container"
+	// PodCPUManagerScope represents that
+	// CPU Manager policy is applied on a per-pod basis.
+	PodCPUManagerScope = "pod"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -223,6 +229,10 @@ type KubeletConfiguration struct {
 	// CPUManagerPolicy is the name of the policy to use.
 	// Requires the CPUManager feature gate to be enabled.
 	CPUManagerPolicy string
+	// CPUManagerScope represents the scope of CPU Allocation
+	// Default: "container"
+	// +optional
+	CPUManagerScope string
 	// CPUManagerPolicyOptions is a set of key=value which 	allows to set extra options
 	// to fine tune the behaviour of the cpu manager policies.
 	// Requires  both the "CPUManager" and "CPUManagerPolicyOptions" feature gates to be enabled.

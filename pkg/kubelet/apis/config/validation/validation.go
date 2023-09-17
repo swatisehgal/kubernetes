@@ -157,6 +157,15 @@ func ValidateKubeletConfiguration(kc *kubeletconfig.KubeletConfiguration, featur
 		allErrors = append(allErrors, fmt.Errorf("invalid configuration: topologyManagerScope (--topology-manager-scope) %q must be one of: %q, or %q", kc.TopologyManagerScope, kubeletconfig.ContainerTopologyManagerScope, kubeletconfig.PodTopologyManagerScope))
 	}
 
+	if localFeatureGate.Enabled(features.CPUManagerScope) {
+		switch kc.CPUManagerScope {
+		case kubeletconfig.ContainerCPUManagerScope:
+		case kubeletconfig.PodCPUManagerScope:
+		default:
+			allErrors = append(allErrors, fmt.Errorf("invalid configuration: cpuManagerScope (--cpu-manager-scope) %q must be one of: %q, or %q", kc.CPUManagerScope, kubeletconfig.ContainerCPUManagerScope, kubeletconfig.PodCPUManagerScope))
+		}
+	}
+
 	if localFeatureGate.Enabled(features.GracefulNodeShutdown) {
 		if kc.ShutdownGracePeriodCriticalPods.Duration > kc.ShutdownGracePeriod.Duration {
 			allErrors = append(allErrors, fmt.Errorf("invalid configuration: shutdownGracePeriodCriticalPods %v must be <= shutdownGracePeriod %v", kc.ShutdownGracePeriodCriticalPods, kc.ShutdownGracePeriod))
