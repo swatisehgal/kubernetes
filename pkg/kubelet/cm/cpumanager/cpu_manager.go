@@ -232,6 +232,8 @@ func (m *manager) Start(activePods ActivePodsFunc, sourcesReady config.SourcesRe
 		return err
 	}
 
+	klog.V(4).InfoS("CPU manager started successfully", "policy", m.policy.Name())
+
 	m.allocatableCPUs = m.policy.GetAllocatableCPUs(m.state)
 
 	if m.policy.Name() == string(PolicyNone) {
@@ -261,6 +263,7 @@ func (m *manager) Allocate(p *v1.Pod, c *v1.Container) error {
 		return err
 	}
 
+	klog.V(4).InfoS("CPUs allocated by cpumanager successfully", "pod", klog.KObj(p), "podUID", p.UID, "containerName", c.Name)
 	return nil
 }
 
