@@ -420,6 +420,7 @@ func (p *staticPolicy) allocateCPUs(s state.State, numCPUs int, numaAffinity bit
 
 func (p *staticPolicy) guaranteedCPUs(pod *v1.Pod, container *v1.Container) int {
 	if v1qos.GetPodQOS(pod) != v1.PodQOSGuaranteed {
+		klog.V(5).InfoS("CPU Allocation Skipped for pod as it is allocated only for Guaranteed pods", "pod", klog.KObj(pod), "podUID", pod.UID, "containerName", container.Name, "qos", v1qos.GetPodQOS(pod))
 		return 0
 	}
 	cpuQuantity := container.Resources.Requests[v1.ResourceCPU]
@@ -433,6 +434,7 @@ func (p *staticPolicy) guaranteedCPUs(pod *v1.Pod, container *v1.Container) int 
 		}
 	}
 	if cpuQuantity.Value()*1000 != cpuQuantity.MilliValue() {
+		klog.V(5).InfoS("CPU Allocation Skipped for pod as it is allocated only for integral CPU Requests", "pod", klog.KObj(pod), "podUID", pod.UID, "containerName", container.Name, "cpu", cpuQuantity.Value())
 		return 0
 	}
 	// Safe downcast to do for all systems with < 2.1 billion CPUs.
