@@ -113,6 +113,7 @@ const (
 	CPUManagerPinningErrorsTotalKey           = "cpu_manager_pinning_errors_total"
 	CPUManagerSharedPoolSizeMilliCoresKey     = "cpu_manager_shared_pool_size_millicores"
 	CPUManagerExclusiveCPUsAllocationCountKey = "cpu_manager_exclusive_cpu_allocation_count"
+	CPUManagerNUMAAllocationSpreadKey         = "cpu_manager_numa_allocation_spread"
 
 	// Metrics to track the Memory manager behavior
 	MemoryManagerPinningRequestsTotalKey = "memory_manager_pinning_requests_total"
@@ -1008,6 +1009,17 @@ var (
 		},
 		[]string{"reason"},
 	)
+
+	// CPUManagerNUMAAllocationSpread tracks the count of CPUs allocated per NUMA node
+	CPUManagerNUMAAllocationSpread = metrics.NewGaugeVec(
+		&metrics.GaugeOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           CPUManagerNUMAAllocationSpreadKey,
+			Help:           "Number of CPUs allocated per NUMA node",
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{AlignedNUMANode},
+	)
 )
 
 var registerMetrics sync.Once
@@ -1078,6 +1090,7 @@ func Register(collectors ...metrics.StableCollector) {
 		legacyregistry.MustRegister(CPUManagerPinningErrorsTotal)
 		legacyregistry.MustRegister(CPUManagerSharedPoolSizeMilliCores)
 		legacyregistry.MustRegister(CPUManagerExclusiveCPUsAllocationCount)
+		legacyregistry.MustRegister(CPUManagerNUMAAllocationSpread)
 		legacyregistry.MustRegister(ContainerAlignedComputeResources)
 		legacyregistry.MustRegister(MemoryManagerPinningRequestTotal)
 		legacyregistry.MustRegister(MemoryManagerPinningErrorsTotal)

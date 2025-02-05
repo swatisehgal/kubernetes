@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager/topology"
+	"k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/utils/cpuset"
 )
 
@@ -529,6 +530,7 @@ func (a *cpuAccumulator) takeFullNUMANodes() {
 			continue
 		}
 		klog.V(4).InfoS("takeFullNUMANodes: claiming NUMA node", "numa", numa)
+		metrics.CPUManagerNUMAAllocationSpread.WithLabelValues(fmt.Sprintf("%d", numa)).Set(float64(cpusInNUMANode.Size()))
 		a.take(cpusInNUMANode)
 	}
 }
