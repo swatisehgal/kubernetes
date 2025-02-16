@@ -181,7 +181,7 @@ func newTestKubeletWithImageList(
 	initFakeVolumePlugin bool,
 	localStorageCapacityIsolation bool,
 ) *TestKubelet {
-	logger, _ := ktesting.NewTestContext(t)
+	logger, tCtx := ktesting.NewTestContext(t)
 
 	fakeRuntime := &containertest.FakeRuntime{
 		ImageList: imageList,
@@ -290,7 +290,7 @@ func newTestKubeletWithImageList(
 	kubelet.readinessManager = proberesults.NewManager()
 	kubelet.startupManager = proberesults.NewManager()
 
-	fakeContainerManager := cm.NewFakeContainerManager()
+	fakeContainerManager := cm.NewFakeContainerManager(tCtx)
 	kubelet.containerManager = fakeContainerManager
 	fakeNodeRef := &v1.ObjectReference{
 		Kind:      "Node",
