@@ -17,6 +17,7 @@ limitations under the License.
 package devicemanager
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,6 +56,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/pluginmanager"
 	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
+	"k8s.io/kubernetes/test/utils/ktesting"
 )
 
 const (
@@ -98,7 +100,8 @@ func tmpSocketDir() (socketDir, socketName, pluginSocketName string, err error) 
 
 func TestNewManagerImpl(t *testing.T) {
 	socketDir, socketName, _, err := tmpSocketDir()
-	topologyStore := topologymanager.NewFakeManager()
+	tCtx := ktesting.Init(t)
+	topologyStore := topologymanager.NewFakeManager(tCtx)
 	require.NoError(t, err)
 	defer os.RemoveAll(socketDir)
 	_, err = newManagerImpl(socketName, nil, topologyStore)
@@ -271,7 +274,8 @@ func TestDevicePluginReRegistrationProbeMode(t *testing.T) {
 
 func setupDeviceManager(t *testing.T, devs []*pluginapi.Device, callback monitorCallback, socketName string,
 	topology []cadvisorapi.Node) (Manager, <-chan interface{}) {
-	topologyStore := topologymanager.NewFakeManager()
+	tCtx := ktesting.Init(t)
+	topologyStore := topologymanager.NewFakeManager(tCtx)
 	m, err := newManagerImpl(socketName, topology, topologyStore)
 	require.NoError(t, err)
 	updateChan := make(chan interface{})
@@ -341,8 +345,9 @@ func cleanup(t *testing.T, m Manager, p *plugin.Stub) {
 }
 
 func TestUpdateCapacityAllocatable(t *testing.T) {
+	tCtx := ktesting.Init(t)
 	socketDir, socketName, _, err := tmpSocketDir()
-	topologyStore := topologymanager.NewFakeManager()
+	topologyStore := topologymanager.NewFakeManager(tCtx)
 	require.NoError(t, err)
 	defer os.RemoveAll(socketDir)
 	testManager, err := newManagerImpl(socketName, nil, topologyStore)
@@ -483,8 +488,9 @@ func TestUpdateCapacityAllocatable(t *testing.T) {
 }
 
 func TestGetAllocatableDevicesMultipleResources(t *testing.T) {
+	tCtx := ktesting.Init(t)
 	socketDir, socketName, _, err := tmpSocketDir()
-	topologyStore := topologymanager.NewFakeManager()
+	topologyStore := topologymanager.NewFakeManager(tCtx)
 	require.NoError(t, err)
 	defer os.RemoveAll(socketDir)
 	testManager, err := newManagerImpl(socketName, nil, topologyStore)
@@ -525,7 +531,8 @@ func TestGetAllocatableDevicesMultipleResources(t *testing.T) {
 
 func TestGetAllocatableDevicesHealthTransition(t *testing.T) {
 	socketDir, socketName, _, err := tmpSocketDir()
-	topologyStore := topologymanager.NewFakeManager()
+	tCtx := ktesting.Init(t)
+	topologyStore := topologymanager.NewFakeManager(tCtx)
 	require.NoError(t, err)
 	defer os.RemoveAll(socketDir)
 	testManager, err := newManagerImpl(socketName, nil, topologyStore)
@@ -826,7 +833,7 @@ func makePod(limits v1.ResourceList) *v1.Pod {
 	}
 }
 
-func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestResource) (*wrappedManagerImpl, error) {
+func getTestManager(ctx context.Context, tmpDir string, activePods ActivePodsFunc, testRes []TestResource) (*wrappedManagerImpl, error) {
 	monitorCallback := func(resourceName string, devices []pluginapi.Device) {}
 	ckm, err := checkpointmanager.NewCheckpointManager(tmpDir)
 	if err != nil {
@@ -839,7 +846,7 @@ func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestReso
 		endpoints:             make(map[string]endpointInfo),
 		podDevices:            newPodDevices(),
 		devicesToReuse:        make(PodReusableDevices),
-		topologyAffinityStore: topologymanager.NewFakeManager(),
+		topologyAffinityStore: topologymanager.NewFakeManager(ctx),
 		activePods:            activePods,
 		sourcesReady:          &sourcesReadyStub{},
 		checkpointManager:     ckm,
@@ -953,8 +960,9 @@ func TestFilterByAffinity(t *testing.T) {
 		NUMANodeAffinity: fakeAffinity,
 		Preferred:        true,
 	}
+	tCtx := ktesting.Init(t)
 	testManager := ManagerImpl{
-		topologyAffinityStore: topologymanager.NewFakeManagerWithHint(&fakeHint),
+		topologyAffinityStore: topologymanager.NewFakeManagerWithHint(tCtx, &fakeHint),
 		allDevices:            allDevices,
 	}
 
@@ -1009,7 +1017,8 @@ func TestPodContainerDeviceAllocation(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "checkpoint")
 	as.NoError(err)
 	defer os.RemoveAll(tmpDir)
-	testManager, err := getTestManager(tmpDir, podsStub.getActivePods, testResources)
+	tCtx := ktesting.Init(t)
+	testManager, err := getTestManager(tCtx, tmpDir, podsStub.getActivePods, testResources)
 	as.NoError(err)
 
 	testPods := []*v1.Pod{
@@ -1218,6 +1227,7 @@ func TestDevicesToAllocateConflictWithUpdateAllocatedDevices(t *testing.T) {
 		}, nil
 	})
 
+	tCtx := ktesting.Init(t)
 	testManager := &ManagerImpl{
 		endpoints:             make(map[string]endpointInfo),
 		healthyDevices:        make(map[string]sets.Set[string]),
@@ -1226,7 +1236,7 @@ func TestDevicesToAllocateConflictWithUpdateAllocatedDevices(t *testing.T) {
 		podDevices:            newPodDevices(),
 		activePods:            func() []*v1.Pod { return []*v1.Pod{} },
 		sourcesReady:          &sourcesReadyStub{},
-		topologyAffinityStore: topologymanager.NewFakeManager(),
+		topologyAffinityStore: topologymanager.NewFakeManager(tCtx),
 	}
 
 	testManager.endpoints[resourceName] = endpointInfo{
@@ -1250,6 +1260,7 @@ func TestDevicesToAllocateConflictWithUpdateAllocatedDevices(t *testing.T) {
 }
 
 func TestGetDeviceRunContainerOptions(t *testing.T) {
+
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
@@ -1276,7 +1287,8 @@ func TestGetDeviceRunContainerOptions(t *testing.T) {
 	as.NoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	testManager, err := getTestManager(tmpDir, podsStub.getActivePods, testResources)
+	tCtx := ktesting.Init(t)
+	testManager, err := getTestManager(tCtx, tmpDir, podsStub.getActivePods, testResources)
 	as.NoError(err)
 
 	pod1 := makePod(v1.ResourceList{
@@ -1338,7 +1350,8 @@ func TestInitContainerDeviceAllocation(t *testing.T) {
 	as.NoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	testManager, err := getTestManager(tmpDir, podsStub.getActivePods, testResources)
+	tCtx := ktesting.Init(t)
+	testManager, err := getTestManager(tCtx, tmpDir, podsStub.getActivePods, testResources)
 	as.NoError(err)
 
 	podWithPluginResourcesInInitContainers := &v1.Pod{
@@ -1439,7 +1452,8 @@ func TestRestartableInitContainerDeviceAllocation(t *testing.T) {
 	as.NoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	testManager, err := getTestManager(tmpDir, podsStub.getActivePods, testResources)
+	tCtx := ktesting.Init(t)
+	testManager, err := getTestManager(tCtx, tmpDir, podsStub.getActivePods, testResources)
 	as.NoError(err)
 
 	containerRestartPolicyAlways := v1.ContainerRestartPolicyAlways
@@ -1614,7 +1628,8 @@ func TestDevicePreStartContainer(t *testing.T) {
 	as.NoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	testManager, err := getTestManager(tmpDir, podsStub.getActivePods, []TestResource{res1})
+	tCtx := ktesting.Init(t)
+	testManager, err := getTestManager(tCtx, tmpDir, podsStub.getActivePods, []TestResource{res1})
 	as.NoError(err)
 
 	ch := make(chan []string, 1)

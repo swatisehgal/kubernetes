@@ -291,6 +291,7 @@ func NewContainerManager(ctx context.Context, mountUtil mount.Interface, cadviso
 	}
 
 	cm.topologyManager, err = topologymanager.NewManager(
+		ctx,
 		machineInfo.Topology,
 		nodeConfig.TopologyManagerPolicy,
 		nodeConfig.TopologyManagerScope,

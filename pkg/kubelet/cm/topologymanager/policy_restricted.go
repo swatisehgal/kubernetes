@@ -16,6 +16,12 @@ limitations under the License.
 
 package topologymanager
 
+import (
+	"context"
+
+	"k8s.io/klog/v2"
+)
+
 type restrictedPolicy struct {
 	bestEffortPolicy
 }
@@ -26,8 +32,9 @@ var _ Policy = &restrictedPolicy{}
 const PolicyRestricted string = "restricted"
 
 // NewRestrictedPolicy returns restricted policy.
-func NewRestrictedPolicy(numaInfo *NUMAInfo, opts PolicyOptions) Policy {
-	return &restrictedPolicy{bestEffortPolicy{numaInfo: numaInfo, opts: opts}}
+func NewRestrictedPolicy(ctx context.Context, numaInfo *NUMAInfo, opts PolicyOptions) Policy {
+	logger := klog.FromContext(ctx)
+	return &restrictedPolicy{bestEffortPolicy{logger: logger, numaInfo: numaInfo, opts: opts}}
 }
 
 func (p *restrictedPolicy) Name() string {
@@ -39,7 +46,7 @@ func (p *restrictedPolicy) canAdmitPodResult(hint *TopologyHint) bool {
 }
 
 func (p *restrictedPolicy) Merge(providersHints []map[string][]TopologyHint) (TopologyHint, bool) {
-	filteredHints := filterProvidersHints(providersHints)
+	filteredHints := filterProvidersHints(p.logger, providersHints)
 	merger := NewHintMerger(p.numaInfo, filteredHints, p.Name(), p.opts)
 	bestHint := merger.Merge()
 	admit := p.canAdmitPodResult(&bestHint)

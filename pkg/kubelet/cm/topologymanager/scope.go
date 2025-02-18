@@ -19,8 +19,8 @@ package topologymanager
 import (
 	"sync"
 
-	"k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
+	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/admission"
 	"k8s.io/kubernetes/pkg/kubelet/cm/containermap"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
@@ -54,6 +54,8 @@ type Scope interface {
 }
 
 type scope struct {
+	logger logr.Logger
+
 	mutex sync.Mutex
 	name  string
 	// Mapping of a Pods mapping of Containers and their TopologyHints
@@ -114,7 +116,7 @@ func (s *scope) RemoveContainer(containerID string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	klog.InfoS("RemoveContainer", "containerID", containerID)
+	s.logger.Info("RemoveContainer", "containerID", containerID)
 	// Get the podUID and containerName associated with the containerID to be removed and remove it
 	podUIDString, containerName, err := s.podMap.GetContainerRef(containerID)
 	if err != nil {

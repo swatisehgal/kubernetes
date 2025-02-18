@@ -43,12 +43,14 @@ import (
 type containerManagerStub struct {
 	shouldResetExtendedResourceCapacity bool
 	extendedPluginResources             v1.ResourceList
+	topologyManager                     topologymanager.Manager
 }
 
 var _ ContainerManager = &containerManagerStub{}
 
 func (cm *containerManagerStub) Start(ctx context.Context, _ *v1.Node, _ ActivePodsFunc, _ GetNodeFunc, _ config.SourcesReady, _ status.PodStatusProvider, _ internalapi.RuntimeService, _ bool) error {
 	klog.V(2).InfoS("Starting stub container manager")
+	cm.topologyManager = topologymanager.NewFakeManager(ctx)
 	return nil
 }
 
@@ -125,7 +127,7 @@ func (cm *containerManagerStub) UpdatePluginResources(*schedulerframework.NodeIn
 }
 
 func (cm *containerManagerStub) InternalContainerLifecycle() InternalContainerLifecycle {
-	return &internalContainerLifecycleImpl{cpumanager.NewFakeManager(), memorymanager.NewFakeManager(), topologymanager.NewFakeManager()}
+	return &internalContainerLifecycleImpl{cpumanager.NewFakeManager(), memorymanager.NewFakeManager(), cm.topologyManager}
 }
 
 func (cm *containerManagerStub) GetPodCgroupRoot() string {
@@ -145,7 +147,7 @@ func (cm *containerManagerStub) ShouldResetExtendedResourceCapacity() bool {
 }
 
 func (cm *containerManagerStub) GetAllocateResourcesPodAdmitHandler() lifecycle.PodAdmitHandler {
-	return topologymanager.NewFakeManager()
+	return cm.topologyManager
 }
 
 func (cm *containerManagerStub) UpdateAllocatedDevices() {

@@ -38,6 +38,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/containermap"
 	"k8s.io/kubernetes/pkg/kubelet/cm/memorymanager/state"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
+	"k8s.io/kubernetes/test/utils/ktesting"
 )
 
 const (
@@ -71,14 +72,14 @@ type testMemoryManager struct {
 	activePods                 []*v1.Pod
 }
 
-func returnPolicyByName(testCase testMemoryManager) Policy {
+func returnPolicyByName(ctx context.Context, testCase testMemoryManager) Policy {
 	switch testCase.policyName {
 	case policyTypeMock:
 		return &mockPolicy{
 			err: fmt.Errorf("fake reg error"),
 		}
 	case policyTypeStatic:
-		policy, _ := NewPolicyStatic(&testCase.machineInfo, testCase.reserved, topologymanager.NewFakeManager())
+		policy, _ := NewPolicyStatic(&testCase.machineInfo, testCase.reserved, topologymanager.NewFakeManager(ctx))
 		return policy
 	case policyTypeNone:
 		return NewPolicyNone()
@@ -892,10 +893,12 @@ func TestRemoveStaleState(t *testing.T) {
 			},
 		},
 	}
+
+	tCtx := ktesting.Init(t)
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			mgr := &manager{
-				policy:       returnPolicyByName(testCase),
+				policy:       returnPolicyByName(tCtx, testCase),
 				state:        state.NewMemoryState(),
 				containerMap: containermap.NewContainerMap(),
 				containerRuntime: mockRuntimeService{
@@ -1384,10 +1387,11 @@ func TestAddContainer(t *testing.T) {
 		},
 	}
 
+	tCtx := ktesting.Init(t)
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			mgr := &manager{
-				policy:       returnPolicyByName(testCase),
+				policy:       returnPolicyByName(tCtx, testCase),
 				state:        state.NewMemoryState(),
 				containerMap: containermap.NewContainerMap(),
 				containerRuntime: mockRuntimeService{
@@ -1857,13 +1861,15 @@ func TestRemoveContainer(t *testing.T) {
 			expectedError: nil,
 		},
 	}
+
+	tCtx := ktesting.Init(t)
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			iniContainerMap := containermap.NewContainerMap()
 			iniContainerMap.Add("fakePod1", "fakeContainer1", "fakeID1")
 			iniContainerMap.Add("fakePod1", "fakeContainer2", "fakeID2")
 			mgr := &manager{
-				policy:       returnPolicyByName(testCase),
+				policy:       returnPolicyByName(tCtx, testCase),
 				state:        state.NewMemoryState(),
 				containerMap: iniContainerMap,
 				containerRuntime: mockRuntimeService{
@@ -1906,6 +1912,8 @@ func TestNewManager(t *testing.T) {
 			v1.ResourceMemory: 1 * gb,
 		},
 	}
+
+	tCtx := ktesting.Init(t)
 	testCases := []testMemoryManager{
 		{
 			description:                "Successful creation of Memory Manager instance",
@@ -1922,7 +1930,7 @@ func TestNewManager(t *testing.T) {
 					Limits:   v1.ResourceList{v1.ResourceMemory: *resource.NewQuantity(gb, resource.BinarySI)},
 				},
 			},
-			affinity:         topologymanager.NewFakeManager(),
+			affinity:         topologymanager.NewFakeManager(tCtx),
 			expectedError:    nil,
 			expectedReserved: expectedReserved,
 		},
@@ -1945,7 +1953,7 @@ func TestNewManager(t *testing.T) {
 					},
 				},
 			},
-			affinity:         topologymanager.NewFakeManager(),
+			affinity:         topologymanager.NewFakeManager(tCtx),
 			expectedError:    fmt.Errorf("the total amount \"3Gi\" of type %q is not equal to the value \"2Gi\" determined by Node Allocatable feature", v1.ResourceMemory),
 			expectedReserved: expectedReserved,
 		},
@@ -1955,7 +1963,7 @@ func TestNewManager(t *testing.T) {
 			machineInfo:                machineInfo,
 			nodeAllocatableReservation: v1.ResourceList{},
 			systemReservedMemory:       []kubeletconfig.MemoryReservation{},
-			affinity:                   topologymanager.NewFakeManager(),
+			affinity:                   topologymanager.NewFakeManager(tCtx),
 			expectedError:              fmt.Errorf("[memorymanager] you should specify the system reserved memory"),
 			expectedReserved:           expectedReserved,
 		},
@@ -1965,7 +1973,7 @@ func TestNewManager(t *testing.T) {
 			machineInfo:                machineInfo,
 			nodeAllocatableReservation: v1.ResourceList{},
 			systemReservedMemory:       []kubeletconfig.MemoryReservation{},
-			affinity:                   topologymanager.NewFakeManager(),
+			affinity:                   topologymanager.NewFakeManager(tCtx),
 			expectedError:              fmt.Errorf("unknown policy: \"fake\""),
 			expectedReserved:           expectedReserved,
 		},
@@ -1975,7 +1983,7 @@ func TestNewManager(t *testing.T) {
 			machineInfo:                machineInfo,
 			nodeAllocatableReservation: v1.ResourceList{},
 			systemReservedMemory:       []kubeletconfig.MemoryReservation{},
-			affinity:                   topologymanager.NewFakeManager(),
+			affinity:                   topologymanager.NewFakeManager(tCtx),
 			expectedError:              nil,
 			expectedReserved:           expectedReserved,
 		},
@@ -2135,10 +2143,11 @@ func TestGetTopologyHints(t *testing.T) {
 		},
 	}
 
+	tCtx := ktesting.Init(t)
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			mgr := &manager{
-				policy:       returnPolicyByName(testCase),
+				policy:       returnPolicyByName(tCtx, testCase),
 				state:        state.NewMemoryState(),
 				containerMap: containermap.NewContainerMap(),
 				containerRuntime: mockRuntimeService{
@@ -2311,11 +2320,12 @@ func TestAllocateAndAddPodWithInitContainers(t *testing.T) {
 		},
 	}
 
+	tCtx := ktesting.Init(t)
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			klog.InfoS("TestAllocateAndAddPodWithInitContainers", "name", testCase.description)
 			mgr := &manager{
-				policy:       returnPolicyByName(testCase),
+				policy:       returnPolicyByName(tCtx, testCase),
 				state:        state.NewMemoryState(),
 				containerMap: containermap.NewContainerMap(),
 				containerRuntime: mockRuntimeService{

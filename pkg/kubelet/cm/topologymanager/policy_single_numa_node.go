@@ -16,7 +16,15 @@ limitations under the License.
 
 package topologymanager
 
+import (
+	"context"
+
+	"github.com/go-logr/logr"
+	"k8s.io/klog/v2"
+)
+
 type singleNumaNodePolicy struct {
+	logger logr.Logger
 	// numaInfo represents list of NUMA Nodes available on the underlying machine and distances between them
 	numaInfo *NUMAInfo
 	opts     PolicyOptions
@@ -28,8 +36,10 @@ var _ Policy = &singleNumaNodePolicy{}
 const PolicySingleNumaNode string = "single-numa-node"
 
 // NewSingleNumaNodePolicy returns single-numa-node policy.
-func NewSingleNumaNodePolicy(numaInfo *NUMAInfo, opts PolicyOptions) Policy {
-	return &singleNumaNodePolicy{numaInfo: numaInfo, opts: opts}
+func NewSingleNumaNodePolicy(ctx context.Context, numaInfo *NUMAInfo, opts PolicyOptions) Policy {
+	logger := klog.FromContext(ctx)
+
+	return &singleNumaNodePolicy{logger: logger, numaInfo: numaInfo, opts: opts}
 }
 
 func (p *singleNumaNodePolicy) Name() string {
@@ -59,7 +69,7 @@ func filterSingleNumaHints(allResourcesHints [][]TopologyHint) [][]TopologyHint 
 }
 
 func (p *singleNumaNodePolicy) Merge(providersHints []map[string][]TopologyHint) (TopologyHint, bool) {
-	filteredHints := filterProvidersHints(providersHints)
+	filteredHints := filterProvidersHints(p.logger, providersHints)
 	// Filter to only include don't cares and hints with a single NUMA node.
 	singleNumaHints := filterSingleNumaHints(filteredHints)
 

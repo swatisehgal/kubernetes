@@ -17,7 +17,10 @@ limitations under the License.
 package topologymanager
 
 import (
-	"k8s.io/api/core/v1"
+	"context"
+
+	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/kubelet/cm/admission"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
@@ -25,34 +28,40 @@ import (
 
 type fakeManager struct {
 	hint   *TopologyHint
+	logger logr.Logger
 	policy Policy
 }
 
 // NewFakeManager returns an instance of FakeManager
-func NewFakeManager() Manager {
-	klog.InfoS("NewFakeManager")
-	return &fakeManager{}
+func NewFakeManager(ctx context.Context) Manager {
+	logger := klog.LoggerWithName(klog.FromContext(ctx), "NewFakeTopologyManager")
+	return &fakeManager{
+		logger: logger,
+	}
 }
 
 // NewFakeManagerWithHint returns an instance of fake topology manager with specified topology hints
-func NewFakeManagerWithHint(hint *TopologyHint) Manager {
-	klog.InfoS("NewFakeManagerWithHint")
+func NewFakeManagerWithHint(ctx context.Context, hint *TopologyHint) Manager {
+	logger := klog.LoggerWithName(klog.FromContext(ctx), "NewFakeManagerWithHint")
 	return &fakeManager{
 		hint:   hint,
+		logger: logger,
 		policy: NewNonePolicy(),
 	}
 }
 
 // NewFakeManagerWithPolicy returns an instance of fake topology manager with specified policy
-func NewFakeManagerWithPolicy(policy Policy) Manager {
-	klog.InfoS("NewFakeManagerWithPolicy", "policy", policy.Name())
+func NewFakeManagerWithPolicy(ctx context.Context, policy Policy) Manager {
+	logger := klog.LoggerWithName(klog.FromContext(ctx), "NewFakeManagerWithHint")
+	logger.Info("NewFakeManagerWithPolicy", "policy", policy.Name())
 	return &fakeManager{
 		policy: policy,
+		logger: logger,
 	}
 }
 
 func (m *fakeManager) GetAffinity(podUID string, containerName string) TopologyHint {
-	klog.InfoS("GetAffinity", "podUID", podUID, "containerName", containerName)
+	m.logger.Info("GetAffinity", "podUID", podUID, "containerName", containerName)
 	if m.hint == nil {
 		return TopologyHint{}
 	}
@@ -65,19 +74,19 @@ func (m *fakeManager) GetPolicy() Policy {
 }
 
 func (m *fakeManager) AddHintProvider(h HintProvider) {
-	klog.InfoS("AddHintProvider", "hintProvider", h)
+	m.logger.Info("AddHintProvider", "hintProvider", h)
 }
 
 func (m *fakeManager) AddContainer(pod *v1.Pod, container *v1.Container, containerID string) {
-	klog.InfoS("AddContainer", "pod", klog.KObj(pod), "containerName", container.Name, "containerID", containerID)
+	m.logger.Info("AddContainer", "pod", klog.KObj(pod), "containerName", container.Name, "containerID", containerID)
 }
 
 func (m *fakeManager) RemoveContainer(containerID string) error {
-	klog.InfoS("RemoveContainer", "containerID", containerID)
+	m.logger.Info("RemoveContainer", "containerID", containerID)
 	return nil
 }
 
 func (m *fakeManager) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
-	klog.InfoS("Topology Admit Handler")
+	m.logger.Info("Topology Admit Handler")
 	return admission.GetPodAdmitResult(nil)
 }

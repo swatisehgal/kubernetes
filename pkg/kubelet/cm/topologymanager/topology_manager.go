@@ -17,6 +17,7 @@ limitations under the License.
 package topologymanager
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -132,19 +133,21 @@ func (th *TopologyHint) LessThan(other TopologyHint) bool {
 var _ Manager = &manager{}
 
 // NewManager creates a new TopologyManager based on provided policy and scope
-func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topologyScopeName string, topologyPolicyOptions map[string]string) (Manager, error) {
+func NewManager(ctx context.Context, topology []cadvisorapi.Node, topologyPolicyName string, topologyScopeName string, topologyPolicyOptions map[string]string) (Manager, error) {
 	// When policy is none, the scope is not relevant, so we can short circuit here.
+	logger := klog.LoggerWithName(klog.FromContext(ctx), "cpu.fake")
+
 	if topologyPolicyName == PolicyNone {
-		klog.InfoS("Creating topology manager with none policy")
+		logger.Info("Creating topology manager with none policy")
 		return &manager{scope: NewNoneScope()}, nil
 	}
 
-	opts, err := NewPolicyOptions(topologyPolicyOptions)
+	opts, err := NewPolicyOptions(ctx, topologyPolicyOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	klog.InfoS("Creating topology manager with policy per scope", "topologyPolicyName", topologyPolicyName, "topologyScopeName", topologyScopeName, "topologyPolicyOptions", opts)
+	logger.Info("Creating topology manager with policy per scope", "topologyPolicyName", topologyPolicyName, "topologyScopeName", topologyScopeName, "topologyPolicyOptions", opts)
 
 	numaInfo, err := NewNUMAInfo(topology, opts)
 	if err != nil {
@@ -159,13 +162,13 @@ func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topology
 	switch topologyPolicyName {
 
 	case PolicyBestEffort:
-		policy = NewBestEffortPolicy(numaInfo, opts)
+		policy = NewBestEffortPolicy(ctx, numaInfo, opts)
 
 	case PolicyRestricted:
-		policy = NewRestrictedPolicy(numaInfo, opts)
+		policy = NewRestrictedPolicy(ctx, numaInfo, opts)
 
 	case PolicySingleNumaNode:
-		policy = NewSingleNumaNodePolicy(numaInfo, opts)
+		policy = NewSingleNumaNodePolicy(ctx, numaInfo, opts)
 
 	default:
 		return nil, fmt.Errorf("unknown policy: \"%s\"", topologyPolicyName)
@@ -175,10 +178,10 @@ func NewManager(topology []cadvisorapi.Node, topologyPolicyName string, topology
 	switch topologyScopeName {
 
 	case containerTopologyScope:
-		scope = NewContainerScope(policy)
+		scope = NewContainerScope(ctx, policy)
 
 	case podTopologyScope:
-		scope = NewPodScope(policy)
+		scope = NewPodScope(ctx, policy)
 
 	default:
 		return nil, fmt.Errorf("unknown scope: \"%s\"", topologyScopeName)
@@ -212,7 +215,8 @@ func (m *manager) RemoveContainer(containerID string) error {
 }
 
 func (m *manager) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
-	klog.V(4).InfoS("Topology manager admission check", "pod", klog.KObj(attrs.Pod))
+	logger := klog.FromContext(context.Background())
+	logger.V(4).Info("Topology manager admission check", "pod", klog.KObj(attrs.Pod))
 	metrics.TopologyManagerAdmissionRequestsTotal.Inc()
 
 	startTime := time.Now()

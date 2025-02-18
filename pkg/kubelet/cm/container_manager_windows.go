@@ -140,7 +140,9 @@ func NewContainerManager(ctx context.Context, mountUtil mount.Interface, cadviso
 
 	if utilfeature.DefaultFeatureGate.Enabled(kubefeatures.WindowsCPUAndMemoryAffinity) {
 		klog.InfoS("Creating topology manager")
-		cm.topologyManager, err = topologymanager.NewManager(machineInfo.Topology,
+		cm.topologyManager, err = topologymanager.NewManager(
+			ctx,
+			machineInfo.Topology,
 			nodeConfig.TopologyManagerPolicy,
 			nodeConfig.TopologyManagerScope,
 			nodeConfig.TopologyManagerPolicyOptions)

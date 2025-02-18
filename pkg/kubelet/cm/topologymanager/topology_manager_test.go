@@ -21,12 +21,13 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
+	"k8s.io/kubernetes/test/utils/ktesting"
 )
 
 func NewTestBitMask(sockets ...int) bitmask.BitMask {
@@ -140,8 +141,8 @@ func TestNewManager(t *testing.T) {
 
 	for _, tc := range tcases {
 		topology := tc.topology
-
-		mngr, err := NewManager(topology, tc.policyName, "container", tc.policyOptions)
+		tCtx := ktesting.Init(t)
+		mngr, err := NewManager(tCtx, topology, tc.policyName, "container", tc.policyOptions)
 		if tc.expectedError != nil {
 			if !strings.Contains(err.Error(), tc.expectedError.Error()) {
 				t.Errorf("Unexpected error message. Have: %s wants %s", err.Error(), tc.expectedError.Error())
@@ -186,7 +187,8 @@ func TestManagerScope(t *testing.T) {
 	}
 
 	for _, tc := range tcases {
-		mngr, err := NewManager(nil, "best-effort", tc.scopeName, nil)
+		tCtx := ktesting.Init(t)
+		mngr, err := NewManager(tCtx, nil, "best-effort", tc.scopeName, nil)
 
 		if tc.expectedError != nil {
 			if !strings.Contains(err.Error(), tc.expectedError.Error()) {
@@ -232,6 +234,7 @@ func (p *mockPolicy) Merge(providersHints []map[string][]TopologyHint) (Topology
 }
 
 func TestAddHintProvider(t *testing.T) {
+	tCtx := ktesting.Init(t)
 	tcases := []struct {
 		name string
 		hp   []HintProvider
@@ -246,7 +249,7 @@ func TestAddHintProvider(t *testing.T) {
 		},
 	}
 	mngr := manager{}
-	mngr.scope = NewContainerScope(NewNonePolicy())
+	mngr.scope = NewContainerScope(tCtx, NewNonePolicy())
 	for _, tc := range tcases {
 		for _, hp := range tc.hp {
 			mngr.AddHintProvider(hp)
@@ -265,11 +268,11 @@ func TestAdmit(t *testing.T) {
 			1: {11, 10},
 		},
 	}
-
+	tCtx := ktesting.Init(t)
 	opts := PolicyOptions{}
-	bePolicy := NewBestEffortPolicy(numaInfo, opts)
-	restrictedPolicy := NewRestrictedPolicy(numaInfo, opts)
-	singleNumaPolicy := NewSingleNumaNodePolicy(numaInfo, opts)
+	bePolicy := NewBestEffortPolicy(tCtx, numaInfo, opts)
+	restrictedPolicy := NewRestrictedPolicy(tCtx, numaInfo, opts)
+	singleNumaPolicy := NewSingleNumaNodePolicy(tCtx, numaInfo, opts)
 
 	tcases := []struct {
 		name     string
@@ -536,13 +539,15 @@ func TestAdmit(t *testing.T) {
 			expected: false,
 		},
 	}
+
+	//	TODO check how to pass test context here
 	for _, tc := range tcases {
 		ctnScopeManager := manager{}
-		ctnScopeManager.scope = NewContainerScope(tc.policy)
+		ctnScopeManager.scope = NewContainerScope(tCtx, tc.policy)
 		ctnScopeManager.scope.(*containerScope).hintProviders = tc.hp
 
 		podScopeManager := manager{}
-		podScopeManager.scope = NewPodScope(tc.policy)
+		podScopeManager.scope = NewPodScope(tCtx, tc.policy)
 		podScopeManager.scope.(*podScope).hintProviders = tc.hp
 
 		pod := &v1.Pod{
