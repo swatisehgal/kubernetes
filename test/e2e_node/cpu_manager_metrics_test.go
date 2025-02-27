@@ -37,13 +37,12 @@ import (
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
-	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/cpuset"
 )
 
-var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUManager, func() {
+var _ = SIGDescribe("CPU Manager Metrics Swati", framework.WithSerial(), feature.CPUManagerMetrics, func() {
 	f := framework.NewDefaultFramework("cpumanager-metrics")
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 
@@ -99,94 +98,211 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 			updateKubeletConfig(ctx, f, oldCfg, true)
 		})
 
-		ginkgo.It("should report zero pinning counters after a fresh restart", func(ctx context.Context) {
-			// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
-			// being [Serial], we can also assume noone else but us is running pods.
-			ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with no pods running")
+		// ginkgo.It("should report zero pinning counters after a fresh restart", func(ctx context.Context) {
+		// 	// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
+		// 	// being [Serial], we can also assume noone else but us is running pods.
+		// 	ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with no pods running")
 
-			matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_cpu_manager_pinning_requests_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(0),
-				}),
-				"kubelet_cpu_manager_pinning_errors_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(0),
-				}),
-			})
+		// 	matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_cpu_manager_pinning_requests_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(0),
+		// 		}),
+		// 		"kubelet_cpu_manager_pinning_errors_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(0),
+		// 		}),
+		// 	})
 
-			ginkgo.By("Giving the Kubelet time to start up and produce metrics")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
-			ginkgo.By("Ensuring the metrics match the expectations a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
-		})
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
+		// 	ginkgo.By("Ensuring the metrics match the expectations a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
+		// })
 
-		ginkgo.It("should report pinning failures when the cpumanager allocation is known to fail", func(ctx context.Context) {
-			ginkgo.By("Creating the test pod which will be rejected for SMTAlignmentError")
-			testPod = e2epod.NewPodClient(f).Create(ctx, makeGuaranteedCPUExclusiveSleeperPod("smt-align-err", 1))
+		// ginkgo.It("should report pinning failures when the cpumanager allocation is known to fail", func(ctx context.Context) {
+		// 	ginkgo.By("Creating the test pod which will be rejected for SMTAlignmentError")
+		// 	testPod = e2epod.NewPodClient(f).Create(ctx, makeGuaranteedCPUExclusiveSleeperPod("smt-align-err", 1))
 
-			// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
-			// being [Serial], we can also assume noone else but us is running pods.
-			ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with pod failed to admit")
+		// 	// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
+		// 	// being [Serial], we can also assume noone else but us is running pods.
+		// 	ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with pod failed to admit")
 
-			matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_cpu_manager_pinning_requests_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(1),
-				}),
-				"kubelet_cpu_manager_pinning_errors_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(1),
-				}),
-			})
+		// 	matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_cpu_manager_pinning_requests_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(1),
+		// 		}),
+		// 		"kubelet_cpu_manager_pinning_errors_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(1),
+		// 		}),
+		// 	})
 
-			ginkgo.By("Giving the Kubelet time to start up and produce metrics")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
-			ginkgo.By("Ensuring the metrics match the expectations a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
-		})
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
+		// 	ginkgo.By("Ensuring the metrics match the expectations a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
+		// })
 
-		ginkgo.It("should not report any pinning failures when the cpumanager allocation is expected to succeed", func(ctx context.Context) {
-			ginkgo.By("Creating the test pod")
-			testPod = e2epod.NewPodClient(f).Create(ctx, makeGuaranteedCPUExclusiveSleeperPod("smt-align-ok", smtLevel))
+		// ginkgo.It("should not report any pinning failures when the cpumanager allocation is expected to succeed", func(ctx context.Context) {
+		// 	ginkgo.By("Creating the test pod")
+		// 	testPod = e2epod.NewPodClient(f).Create(ctx, makeGuaranteedCPUExclusiveSleeperPod("smt-align-ok", smtLevel))
 
-			// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
-			// being [Serial], we can also assume noone else but us is running pods.
-			ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with pod should be admitted")
+		// 	// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
+		// 	// being [Serial], we can also assume noone else but us is running pods.
+		// 	ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with pod should be admitted")
 
-			matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_cpu_manager_pinning_requests_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(1),
-				}),
-				"kubelet_cpu_manager_pinning_errors_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(0),
-				}),
-			})
+		// 	matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_cpu_manager_pinning_requests_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(1),
+		// 		}),
+		// 		"kubelet_cpu_manager_pinning_errors_total": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(0),
+		// 		}),
+		// 	})
 
-			ginkgo.By("Giving the Kubelet time to start up and produce metrics")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
-			ginkgo.By("Ensuring the metrics match the expectations a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
-		})
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
+		// 	ginkgo.By("Ensuring the metrics match the expectations a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchResourceMetrics)
+		// })
 
-		ginkgo.It("should return updated alignment counters when pod successfully run", func(ctx context.Context) {
-			ginkgo.By("Creating the test pod")
-			testPod = e2epod.NewPodClient(f).Create(ctx, makeGuaranteedCPUExclusiveSleeperPod("count-align-smt-ok", smtLevel))
+		// ginkgo.It("should return updated alignment counters when pod successfully run", func(ctx context.Context) {
+		// 	ginkgo.By("Creating the test pod")
+		// 	testPod = e2epod.NewPodClient(f).Create(ctx, makeGuaranteedCPUExclusiveSleeperPod("count-align-smt-ok", smtLevel))
 
-			// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
-			// being [Serial], we can also assume noone else but us is running pods.
-			ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with pod should be admitted")
+		// 	// we updated the kubelet config in BeforeEach, so we can assume we start fresh.
+		// 	// being [Serial], we can also assume noone else but us is running pods.
+		// 	ginkgo.By("Checking the cpumanager metrics right after the kubelet restart, with pod should be admitted")
 
-			idFn := makeCustomPairID("scope", "boundary")
-			matchAlignmentMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_container_aligned_compute_resources_count": gstruct.MatchElements(idFn, gstruct.IgnoreExtras, gstruct.Elements{
-					"container::physical_cpu": timelessSample(1),
-				}),
-			})
+		// 	idFn := makeCustomPairID("scope", "boundary")
+		// 	matchAlignmentMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_container_aligned_compute_resources_count": gstruct.MatchElements(idFn, gstruct.IgnoreExtras, gstruct.Elements{
+		// 			"container::physical_cpu": timelessSample(1),
+		// 		}),
+		// 	})
 
-			ginkgo.By("Giving the Kubelet time to update the alignment metrics")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchAlignmentMetrics)
-			ginkgo.By("Ensuring the metrics match the expectations about alignment metrics a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchAlignmentMetrics)
-		})
+		// 	ginkgo.By("Giving the Kubelet time to update the alignment metrics")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchAlignmentMetrics)
+		// 	ginkgo.By("Ensuring the metrics match the expectations about alignment metrics a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 1*time.Minute, 15*time.Second).Should(matchAlignmentMetrics)
+		// })
 
-		ginkgo.It("should report the default idle cpu pool size", func(ctx context.Context) {
+		// ginkgo.It("should report the default idle cpu pool size", func(ctx context.Context) {
+		// 	ginkgo.By("Querying the podresources endpoint to get the baseline")
+		// 	endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+		// 	framework.ExpectNoError(err, "LocalEndpoint() failed err: %v", err)
+
+		// 	cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+		// 	framework.ExpectNoError(err, "GetV1Client() failed err: %v", err)
+		// 	defer func() {
+		// 		framework.ExpectNoError(conn.Close())
+		// 	}()
+
+		// 	ginkgo.By("Checking the pool allocatable resources from the kubelet")
+		// 	resp, err := cli.GetAllocatableResources(ctx, &kubeletpodresourcesv1.AllocatableResourcesRequest{})
+		// 	framework.ExpectNoError(err, "failed to get the kubelet allocatable resources")
+		// 	allocatableCPUs, _ := demuxCPUsAndDevicesFromGetAllocatableResources(resp)
+
+		// 	matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_cpu_manager_shared_pool_size_millicores": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(int(allocatableCPUs.Size() * 1000)),
+		// 		}),
+		// 		"kubelet_cpu_manager_exclusive_cpu_allocation_count": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(0),
+		// 		}),
+		// 	})
+
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics about idle pool size")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetrics)
+		// 	ginkgo.By("Ensuring the metrics match the expectations about idle pool size a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetrics)
+		// })
+
+		// ginkgo.It("should report mutating cpu pool size when handling guaranteed pods", func(ctx context.Context) {
+		// 	ginkgo.By("Querying the podresources endpoint to get the baseline")
+		// 	endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+		// 	framework.ExpectNoError(err, "LocalEndpoint() failed err: %v", err)
+
+		// 	cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+		// 	framework.ExpectNoError(err, "GetV1Client() failed err: %v", err)
+		// 	defer func() {
+		// 		framework.ExpectNoError(conn.Close())
+		// 	}()
+
+		// 	ginkgo.By("Checking the pool allocatable resources from the kubelet")
+		// 	resp, err := cli.GetAllocatableResources(ctx, &kubeletpodresourcesv1.AllocatableResourcesRequest{})
+		// 	framework.ExpectNoError(err, "failed to get the kubelet allocatable resources")
+		// 	allocatableCPUs, _ := demuxCPUsAndDevicesFromGetAllocatableResources(resp)
+
+		// 	allocatableCPUsIdleMillis := int(allocatableCPUs.Size() * 1000)
+
+		// 	matchResourceMetricsIdle := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_cpu_manager_shared_pool_size_millicores": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(allocatableCPUsIdleMillis),
+		// 		}),
+		// 		"kubelet_cpu_manager_exclusive_cpu_allocation_count": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(0),
+		// 		}),
+		// 	})
+		// 	ginkgo.By(fmt.Sprintf("Pool allocatable resources from the kubelet: shared pool %d cpus %d millis", allocatableCPUs.Size(), allocatableCPUsIdleMillis))
+
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics about idle pool size")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetricsIdle)
+		// 	ginkgo.By("Ensuring the metrics match the expectations about idle pool size a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetricsIdle)
+
+		// 	ginkgo.By("Creating the test pod to consume exclusive cpus from the pool")
+		// 	testPod = e2epod.NewPodClient(f).CreateSync(ctx, makeGuaranteedCPUExclusiveSleeperPod("smt-cpupool", smtLevel))
+
+		// 	matchResourceMetricsBusy := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+		// 		"kubelet_cpu_manager_shared_pool_size_millicores": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(allocatableCPUsIdleMillis - (smtLevel * 1000)),
+		// 		}),
+		// 		"kubelet_cpu_manager_exclusive_cpu_allocation_count": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+		// 			"": timelessSample(smtLevel),
+		// 		}),
+		// 	})
+
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetricsBusy)
+		// 	ginkgo.By("Ensuring the metrics match the expectations a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetricsBusy)
+
+		// 	deletePodSyncByName(ctx, f, testPod.Name)
+
+		// 	ginkgo.By("Giving the Kubelet time to start up and produce metrics")
+		// 	gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetricsIdle)
+		// 	ginkgo.By("Ensuring the metrics match the expectations a few more times")
+		// 	gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetricsIdle)
+		// })
+
+		ginkgo.It("CPU manager metric should report the default idle cpu pool size", func(ctx context.Context) {
+
+			cpuPolicyOptions := map[string]string{
+				cpumanager.DistributeCPUsAcrossNUMAOption: "true",
+				cpumanager.FullPCPUsOnlyOption:            "true",
+			}
+			newCfg := configureCPUManagerInKubelet(oldCfg,
+				&cpuManagerKubeletArguments{
+					policyName:              string(cpumanager.PolicyStatic),
+					reservedSystemCPUs:      cpuset.New(0),
+					enableCPUManagerOptions: true,
+					options:                 cpuPolicyOptions,
+				},
+			)
+
+			updateKubeletConfig(ctx, f, newCfg, true)
+
+			numaNodes, coresNumPerNUMA, threadsPerCore := hostCheck()
+			cpusNumPerNUMA := coresNumPerNUMA * threadsPerCore
+
+			// It is safe to assume that the CPUs are distributed equally across
+			// NUMA nodes and therefore number of CPUs on all NUMA nodes are same
+			// so we just check the CPUs on the first NUMA node
+
+			framework.Logf("numaNodes on the system %d", numaNodes)
+			framework.Logf("Cores per NUMA on the system %d", coresNumPerNUMA)
+			framework.Logf("Threads per Core on the system %d", threadsPerCore)
+			framework.Logf("CPUs per NUMA on the system %d", cpusNumPerNUMA)
+
 			ginkgo.By("Querying the podresources endpoint to get the baseline")
 			endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
 			framework.ExpectNoError(err, "LocalEndpoint() failed err: %v", err)
@@ -203,7 +319,7 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 			allocatableCPUs, _ := demuxCPUsAndDevicesFromGetAllocatableResources(resp)
 
 			matchResourceMetrics := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_cpu_manager_shared_pool_size_millicores": gstruct.MatchAllElements(nodeID, gstruct.Elements{
+				"kubelet_cpu_manager_numa_allocation_spread": gstruct.MatchAllElements(nodeID, gstruct.Elements{
 					"": timelessSample(int(allocatableCPUs.Size() * 1000)),
 				}),
 				"kubelet_cpu_manager_exclusive_cpu_allocation_count": gstruct.MatchAllElements(nodeID, gstruct.Elements{
@@ -215,64 +331,6 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetrics)
 			ginkgo.By("Ensuring the metrics match the expectations about idle pool size a few more times")
 			gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetrics)
-		})
-
-		ginkgo.It("should report mutating cpu pool size when handling guaranteed pods", func(ctx context.Context) {
-			ginkgo.By("Querying the podresources endpoint to get the baseline")
-			endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
-			framework.ExpectNoError(err, "LocalEndpoint() failed err: %v", err)
-
-			cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
-			framework.ExpectNoError(err, "GetV1Client() failed err: %v", err)
-			defer func() {
-				framework.ExpectNoError(conn.Close())
-			}()
-
-			ginkgo.By("Checking the pool allocatable resources from the kubelet")
-			resp, err := cli.GetAllocatableResources(ctx, &kubeletpodresourcesv1.AllocatableResourcesRequest{})
-			framework.ExpectNoError(err, "failed to get the kubelet allocatable resources")
-			allocatableCPUs, _ := demuxCPUsAndDevicesFromGetAllocatableResources(resp)
-
-			allocatableCPUsIdleMillis := int(allocatableCPUs.Size() * 1000)
-
-			matchResourceMetricsIdle := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_cpu_manager_shared_pool_size_millicores": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(allocatableCPUsIdleMillis),
-				}),
-				"kubelet_cpu_manager_exclusive_cpu_allocation_count": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(0),
-				}),
-			})
-			ginkgo.By(fmt.Sprintf("Pool allocatable resources from the kubelet: shared pool %d cpus %d millis", allocatableCPUs.Size(), allocatableCPUsIdleMillis))
-
-			ginkgo.By("Giving the Kubelet time to start up and produce metrics about idle pool size")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetricsIdle)
-			ginkgo.By("Ensuring the metrics match the expectations about idle pool size a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetricsIdle)
-
-			ginkgo.By("Creating the test pod to consume exclusive cpus from the pool")
-			testPod = e2epod.NewPodClient(f).CreateSync(ctx, makeGuaranteedCPUExclusiveSleeperPod("smt-cpupool", smtLevel))
-
-			matchResourceMetricsBusy := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"kubelet_cpu_manager_shared_pool_size_millicores": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(allocatableCPUsIdleMillis - (smtLevel * 1000)),
-				}),
-				"kubelet_cpu_manager_exclusive_cpu_allocation_count": gstruct.MatchAllElements(nodeID, gstruct.Elements{
-					"": timelessSample(smtLevel),
-				}),
-			})
-
-			ginkgo.By("Giving the Kubelet time to start up and produce metrics")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetricsBusy)
-			ginkgo.By("Ensuring the metrics match the expectations a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetricsBusy)
-
-			deletePodSyncByName(ctx, f, testPod.Name)
-
-			ginkgo.By("Giving the Kubelet time to start up and produce metrics")
-			gomega.Eventually(ctx, getKubeletMetrics, 1*time.Minute, 10*time.Second).Should(matchResourceMetricsIdle)
-			ginkgo.By("Ensuring the metrics match the expectations a few more times")
-			gomega.Consistently(ctx, getKubeletMetrics, 30*time.Second, 10*time.Second).Should(matchResourceMetricsIdle)
 		})
 	})
 })

@@ -75,6 +75,9 @@ var (
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	CPUManager = framework.WithFeature(framework.ValidFeatures.Add("CPUManager"))
 
+	// TODO: document the feature (owning SIG, when to use this feature for a test)
+	CPUManagerMetrics = framework.WithFeature(framework.ValidFeatures.Add("CPUManagerMetrics"))
+
 	// OWNER: sig-node
 	// Testing critical pod admission
 	CriticalPod = framework.WithFeature(framework.ValidFeatures.Add("CriticalPod"))

@@ -269,6 +269,7 @@ type cpuManagerKubeletArguments struct {
 	policyName                       string
 	enableCPUManagerOptions          bool
 	disableCPUQuotaWithExclusiveCPUs bool
+	enableDistributeAcrossNUMA       bool
 	reservedSystemCPUs               cpuset.CPUSet
 	options                          map[string]string
 }
