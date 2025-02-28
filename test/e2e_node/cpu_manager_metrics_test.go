@@ -44,7 +44,7 @@ import (
 	"k8s.io/utils/cpuset"
 )
 
-var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUManager, func() {
+var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUManagerMetrics, func() {
 	f := framework.NewDefaultFramework("cpumanager-metrics")
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 

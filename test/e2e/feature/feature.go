@@ -86,6 +86,9 @@ var (
 	CPUManager = framework.WithFeature(framework.ValidFeatures.Add("CPUManager"))
 
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
+	CPUManagerMetrics = framework.WithFeature(framework.ValidFeatures.Add("CPUManagerMetrics"))
+
+	// TODO: document the feature (owning SIG, when to use this feature for a test)
 	CustomMetricsAutoscaling = framework.WithFeature(framework.ValidFeatures.Add("CustomMetricsAutoscaling"))
 
 	// TODO: document the feature (owning SIG, when to use this feature for a test)
