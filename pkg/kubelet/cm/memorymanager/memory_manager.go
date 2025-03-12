@@ -57,19 +57,19 @@ func (s *sourcesReadyStub) AllReady() bool          { return true }
 // Manager interface provides methods for Kubelet to manage pod memory.
 type Manager interface {
 	// Start is called during Kubelet initialization.
-	Start(activePods ActivePodsFunc, sourcesReady config.SourcesReady, podStatusProvider status.PodStatusProvider, containerRuntime runtimeService, initialContainers containermap.ContainerMap) error
+	Start(ctx context.Context, activePods ActivePodsFunc, sourcesReady config.SourcesReady, podStatusProvider status.PodStatusProvider, containerRuntime runtimeService, initialContainers containermap.ContainerMap) error
 
 	// AddContainer adds the mapping between container ID to pod UID and the container name
 	// The mapping used to remove the memory allocation during the container removal
-	AddContainer(p *v1.Pod, c *v1.Container, containerID string)
+	AddContainer(ctx context.Context, p *v1.Pod, c *v1.Container, containerID string)
 
 	// Allocate is called to pre-allocate memory resources during Pod admission.
 	// This must be called at some point prior to the AddContainer() call for a container, e.g. at pod admission time.
-	Allocate(pod *v1.Pod, container *v1.Container) error
+	Allocate(ctx context.Context, pod *v1.Pod, container *v1.Container) error
 
 	// RemoveContainer is called after Kubelet decides to kill or delete a
 	// container. After this call, any memory allocated to the container is freed.
-	RemoveContainer(containerID string) error
+	RemoveContainer(ctx context.Context, containerID string) error
 
 	// State returns a read-only interface to the internal memory manager state.
 	State() state.Reader
@@ -77,15 +77,15 @@ type Manager interface {
 	// GetTopologyHints implements the topologymanager.HintProvider Interface
 	// and is consulted to achieve NUMA aware resource alignment among this
 	// and other resource controllers.
-	GetTopologyHints(*v1.Pod, *v1.Container) map[string][]topologymanager.TopologyHint
+	GetTopologyHints(context.Context, *v1.Pod, *v1.Container) map[string][]topologymanager.TopologyHint
 
 	// GetPodTopologyHints implements the topologymanager.HintProvider Interface
 	// and is consulted to achieve NUMA aware resource alignment among this
 	// and other resource controllers.
-	GetPodTopologyHints(*v1.Pod) map[string][]topologymanager.TopologyHint
+	GetPodTopologyHints(context.Context, *v1.Pod) map[string][]topologymanager.TopologyHint
 
 	// GetMemoryNUMANodes provides NUMA nodes that are used to allocate the container memory
-	GetMemoryNUMANodes(pod *v1.Pod, container *v1.Container) sets.Set[int]
+	GetMemoryNUMANodes(ctx context.Context, pod *v1.Pod, container *v1.Container) sets.Set[int]
 
 	// GetAllocatableMemory returns the amount of allocatable memory for each NUMA node
 	GetAllocatableMemory() []state.Block
@@ -182,8 +182,8 @@ func NewManager(ctx context.Context, policyName string, machineInfo *cadvisorapi
 }
 
 // Start starts the memory manager under the kubelet and calls policy start
-func (m *manager) Start(activePods ActivePodsFunc, sourcesReady config.SourcesReady, podStatusProvider status.PodStatusProvider, containerRuntime runtimeService, initialContainers containermap.ContainerMap) error {
-	ctx := context.TODO()
+func (m *manager) Start(ctx context.Context, activePods ActivePodsFunc, sourcesReady config.SourcesReady, podStatusProvider status.PodStatusProvider, containerRuntime runtimeService, initialContainers containermap.ContainerMap) error {
+	// ctx := context.TODO()
 	logger := klog.FromContext(ctx)
 	logger.Info("Starting memorymanager", "policy", m.policy.Name())
 	m.sourcesReady = sourcesReady
@@ -212,7 +212,7 @@ func (m *manager) Start(activePods ActivePodsFunc, sourcesReady config.SourcesRe
 }
 
 // AddContainer saves the value of requested memory for the guaranteed pod under the state and set memory affinity according to the topolgy manager
-func (m *manager) AddContainer(pod *v1.Pod, container *v1.Container, containerID string) {
+func (m *manager) AddContainer(ctx context.Context, pod *v1.Pod, container *v1.Container, containerID string) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -240,8 +240,8 @@ func (m *manager) AddContainer(pod *v1.Pod, container *v1.Container, containerID
 }
 
 // GetMemoryNUMANodes provides NUMA nodes that used to allocate the container memory
-func (m *manager) GetMemoryNUMANodes(pod *v1.Pod, container *v1.Container) sets.Set[int] {
-	logger := klog.LoggerWithValues(klog.TODO(), "pod", klog.KObj(pod), "containerName", container.Name)
+func (m *manager) GetMemoryNUMANodes(ctx context.Context, pod *v1.Pod, container *v1.Container) sets.Set[int] {
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "pod", klog.KObj(pod), "containerName", container.Name)
 
 	// Get NUMA node affinity of blocks assigned to the container during Allocate()
 	numaNodes := sets.New[int]()
@@ -262,12 +262,11 @@ func (m *manager) GetMemoryNUMANodes(pod *v1.Pod, container *v1.Container) sets.
 }
 
 // Allocate is called to pre-allocate memory resources during Pod admission.
-func (m *manager) Allocate(pod *v1.Pod, container *v1.Container) error {
+func (m *manager) Allocate(ctx context.Context, pod *v1.Pod, container *v1.Container) error {
 	// Garbage collect any stranded resources before allocation
-	ctx := context.Background()
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "pod", klog.KObj(pod), "containerName", container.Name)
 
-	m.removeStaleState()
+	m.removeStaleState(ctx)
 
 	m.Lock()
 	defer m.Unlock()
@@ -281,8 +280,7 @@ func (m *manager) Allocate(pod *v1.Pod, container *v1.Container) error {
 }
 
 // RemoveContainer removes the container from the state
-func (m *manager) RemoveContainer(containerID string) error {
-	ctx := context.Background()
+func (m *manager) RemoveContainer(ctx context.Context, containerID string) error {
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "containerID", containerID)
 
 	m.Lock()
@@ -306,23 +304,24 @@ func (m *manager) State() state.Reader {
 }
 
 // GetPodTopologyHints returns the topology hints for the topology manager
-func (m *manager) GetPodTopologyHints(pod *v1.Pod) map[string][]topologymanager.TopologyHint {
+func (m *manager) GetPodTopologyHints(ctx context.Context, pod *v1.Pod) map[string][]topologymanager.TopologyHint {
 	// Garbage collect any stranded resources before providing TopologyHints
-	m.removeStaleState()
+	m.removeStaleState(ctx)
 	// Delegate to active policy
-	return m.policy.GetPodTopologyHints(context.Background(), m.state, pod)
+	return m.policy.GetPodTopologyHints(ctx, m.state, pod)
 }
 
 // GetTopologyHints returns the topology hints for the topology manager
-func (m *manager) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+func (m *manager) GetTopologyHints(ctx context.Context, pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
 	// Garbage collect any stranded resources before providing TopologyHints
-	m.removeStaleState()
+	m.removeStaleState(ctx)
 	// Delegate to active policy
-	return m.policy.GetTopologyHints(context.Background(), m.state, pod, container)
+	return m.policy.GetTopologyHints(ctx, m.state, pod, container)
 }
 
 // TODO: move the method to the upper level, to re-use it under the CPU and memory managers
-func (m *manager) removeStaleState() {
+func (m *manager) removeStaleState(ctx context.Context) {
+	logger := klog.FromContext(ctx)
 	// Only once all sources are ready do we attempt to remove any stale state.
 	// This ensures that the call to `m.activePods()` below will succeed with
 	// the actual active pods list.
@@ -355,7 +354,7 @@ func (m *manager) removeStaleState() {
 	for podUID := range assignments {
 		for containerName := range assignments[podUID] {
 			if _, ok := activeContainers[podUID][containerName]; !ok {
-				klog.V(2).InfoS("RemoveStaleState removing state", "podUID", podUID, "containerName", containerName)
+				logger.V(2).Info("RemoveStaleState removing state", "podUID", podUID, "containerName", containerName)
 				m.policyRemoveContainerByRef(podUID, containerName)
 			}
 		}
@@ -363,7 +362,7 @@ func (m *manager) removeStaleState() {
 
 	m.containerMap.Visit(func(podUID, containerName, containerID string) {
 		if _, ok := activeContainers[podUID][containerName]; !ok {
-			klog.V(2).InfoS("RemoveStaleState removing state", "podUID", podUID, "containerName", containerName)
+			logger.V(2).Info("RemoveStaleState removing state", "podUID", podUID, "containerName", containerName)
 			m.policyRemoveContainerByRef(podUID, containerName)
 		}
 	})

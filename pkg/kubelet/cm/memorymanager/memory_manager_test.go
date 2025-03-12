@@ -911,7 +911,7 @@ func TestRemoveStaleState(t *testing.T) {
 			mgr.state.SetMemoryAssignments(testCase.assignments)
 			mgr.state.SetMachineState(testCase.machineState)
 
-			mgr.removeStaleState()
+			mgr.removeStaleState(tCtx)
 
 			if !areContainerMemoryAssignmentsEqual(t, mgr.state.GetMemoryAssignments(), testCase.expectedAssignments) {
 				t.Errorf("Memory Manager removeStaleState() error, expected assignments %v, but got: %v",
@@ -1408,12 +1408,12 @@ func TestAddContainer(t *testing.T) {
 			}
 			pod := testCase.podAllocate
 			container := &pod.Spec.Containers[0]
-			err := mgr.Allocate(pod, container)
+			err := mgr.Allocate(tCtx, pod, container)
 			if !reflect.DeepEqual(err, testCase.expectedAllocateError) {
 				t.Errorf("Memory Manager Allocate() error (%v), expected error: %v, but got: %v",
 					testCase.description, testCase.expectedAllocateError, err)
 			}
-			mgr.AddContainer(pod, container, "fakeID")
+			mgr.AddContainer(tCtx, pod, container, "fakeID")
 			_, _, err = mgr.containerMap.GetContainerRef("fakeID")
 			if !reflect.DeepEqual(err, testCase.expectedAddContainerError) {
 				t.Errorf("Memory Manager AddContainer() error (%v), expected error: %v, but got: %v",
@@ -1881,7 +1881,7 @@ func TestRemoveContainer(t *testing.T) {
 			mgr.state.SetMemoryAssignments(testCase.assignments)
 			mgr.state.SetMachineState(testCase.machineState)
 
-			err := mgr.RemoveContainer(testCase.removeContainerID)
+			err := mgr.RemoveContainer(tCtx, testCase.removeContainerID)
 			if !reflect.DeepEqual(err, testCase.expectedError) {
 				t.Errorf("Memory Manager RemoveContainer() error (%v), expected error: %v, but got: %v",
 					testCase.description, testCase.expectedError, err)
@@ -2167,7 +2167,7 @@ func TestGetTopologyHints(t *testing.T) {
 
 			pod := getPod("fakePod1", "fakeContainer1", requirementsGuaranteed)
 			container := &pod.Spec.Containers[0]
-			hints := mgr.GetTopologyHints(pod, container)
+			hints := mgr.GetTopologyHints(tCtx, pod, container)
 			if !reflect.DeepEqual(hints, testCase.expectedHints) {
 				t.Errorf("Hints were not generated correctly. Hints generated: %+v, hints expected: %+v",
 					hints, testCase.expectedHints)
@@ -2345,7 +2345,7 @@ func TestAllocateAndAddPodWithInitContainers(t *testing.T) {
 
 			// Allocates memory for init containers
 			for i := range testCase.podAllocate.Spec.InitContainers {
-				err := mgr.Allocate(testCase.podAllocate, &testCase.podAllocate.Spec.InitContainers[i])
+				err := mgr.Allocate(tCtx, testCase.podAllocate, &testCase.podAllocate.Spec.InitContainers[i])
 				if !reflect.DeepEqual(err, testCase.expectedError) {
 					t.Fatalf("The actual error %v is different from the expected one %v", err, testCase.expectedError)
 				}
@@ -2353,7 +2353,7 @@ func TestAllocateAndAddPodWithInitContainers(t *testing.T) {
 
 			// Allocates memory for apps containers
 			for i := range testCase.podAllocate.Spec.Containers {
-				err := mgr.Allocate(testCase.podAllocate, &testCase.podAllocate.Spec.Containers[i])
+				err := mgr.Allocate(tCtx, testCase.podAllocate, &testCase.podAllocate.Spec.Containers[i])
 				if !reflect.DeepEqual(err, testCase.expectedError) {
 					t.Fatalf("The actual error %v is different from the expected one %v", err, testCase.expectedError)
 				}
@@ -2361,12 +2361,12 @@ func TestAllocateAndAddPodWithInitContainers(t *testing.T) {
 
 			// Calls AddContainer for init containers
 			for i, initContainer := range testCase.podAllocate.Spec.InitContainers {
-				mgr.AddContainer(testCase.podAllocate, &testCase.podAllocate.Spec.InitContainers[i], initContainer.Name)
+				mgr.AddContainer(tCtx, testCase.podAllocate, &testCase.podAllocate.Spec.InitContainers[i], initContainer.Name)
 			}
 
 			// Calls AddContainer for apps containers
 			for i, appContainer := range testCase.podAllocate.Spec.Containers {
-				mgr.AddContainer(testCase.podAllocate, &testCase.podAllocate.Spec.Containers[i], appContainer.Name)
+				mgr.AddContainer(tCtx, testCase.podAllocate, &testCase.podAllocate.Spec.Containers[i], appContainer.Name)
 			}
 
 			assignments := mgr.state.GetMemoryAssignments()
