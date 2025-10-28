@@ -132,13 +132,13 @@ type manager struct {
 var _ Manager = &manager{}
 
 // NewManager returns new instance of the memory manager
-func NewManager(ctx context.Context, policyName string, machineInfo *cadvisorapi.MachineInfo, nodeAllocatableReservation v1.ResourceList, reservedMemory []kubeletconfig.MemoryReservation, stateFileDirectory string, affinity topologymanager.Store) (Manager, error) {
+func NewManager(policyName string, machineInfo *cadvisorapi.MachineInfo, nodeAllocatableReservation v1.ResourceList, reservedMemory []kubeletconfig.MemoryReservation, stateFileDirectory string, affinity topologymanager.Store) (Manager, error) {
 	var policy Policy
 
 	switch policyType(policyName) {
 
 	case policyTypeNone:
-		policy = NewPolicyNone(ctx)
+		policy = NewPolicyNone()
 
 	case PolicyTypeStatic:
 		if runtime.GOOS == "windows" {
@@ -150,7 +150,7 @@ func NewManager(ctx context.Context, policyName string, machineInfo *cadvisorapi
 			return nil, err
 		}
 
-		policy, err = NewPolicyStatic(ctx, machineInfo, systemReserved, affinity)
+		policy, err = NewPolicyStatic(machineInfo, systemReserved, affinity)
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +161,7 @@ func NewManager(ctx context.Context, policyName string, machineInfo *cadvisorapi
 			if err != nil {
 				return nil, err
 			}
-			policy, err = NewPolicyBestEffort(ctx, machineInfo, systemReserved, affinity)
+			policy, err = NewPolicyBestEffort(machineInfo, systemReserved, affinity)
 			if err != nil {
 				return nil, err
 			}
@@ -198,13 +198,13 @@ func (m *manager) Start(ctx context.Context, activePods ActivePodsFunc, sourcesR
 	}
 	m.state = stateImpl
 
-	err = m.policy.Start(ctx, m.state)
+	err = m.policy.Start(logger, m.state)
 	if err != nil {
 		logger.Error(err, "Policy start error")
 		return err
 	}
 
-	m.allocatableMemory = m.policy.GetAllocatableMemory(ctx, m.state)
+	m.allocatableMemory = m.policy.GetAllocatableMemory(logger, m.state)
 
 	logger.V(4).Info("memorymanager started", "policy", m.policy.Name())
 	return nil
@@ -263,8 +263,9 @@ func (m *manager) GetMemoryNUMANodes(ctx context.Context, pod *v1.Pod, container
 // Allocate is called to pre-allocate memory resources during Pod admission.
 func (m *manager) Allocate(pod *v1.Pod, container *v1.Container) error {
 	// Garbage collect any stranded resources before allocation
-	ctx := context.TODO()
-	logger := klog.FromContext(ctx)
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	// This should be replaced with an appropriate logger when refactoring this function to accept a logger parameter.
+	logger := klog.TODO()
 
 	m.removeStaleState(logger)
 
@@ -272,7 +273,7 @@ func (m *manager) Allocate(pod *v1.Pod, container *v1.Container) error {
 	defer m.Unlock()
 
 	// Call down into the policy to assign this container memory if required.
-	if err := m.policy.Allocate(ctx, m.state, pod, container); err != nil {
+	if err := m.policy.Allocate(logger, m.state, pod, container); err != nil {
 		logger.Error(err, "Allocate error", "pod", klog.KObj(pod), "containerName", container.Name)
 		return err
 	}
@@ -305,21 +306,24 @@ func (m *manager) State() state.Reader {
 
 // GetPodTopologyHints returns the topology hints for the topology manager
 func (m *manager) GetPodTopologyHints(pod *v1.Pod) map[string][]topologymanager.TopologyHint {
-	// Use context.TODO() because we currently do not have a proper context to pass in.
-	// This should be replaced with an appropriate context when refactoring this function to accept a context parameter.
-	ctx := context.TODO()
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	// This should be replaced with an appropriate logger when refactoring this function to accept a logger parameter.
+	logger := klog.TODO()
 	// Garbage collect any stranded resources before providing TopologyHints
-	m.removeStaleState(klog.FromContext(ctx))
+	m.removeStaleState(logger)
 	// Delegate to active policy
-	return m.policy.GetPodTopologyHints(context.TODO(), m.state, pod)
+	return m.policy.GetPodTopologyHints(logger, m.state, pod)
 }
 
 // GetTopologyHints returns the topology hints for the topology manager
 func (m *manager) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	// This should be replaced with an appropriate logger when refactoring this function to accept a logger parameter.
+	logger := klog.TODO()
 	// Garbage collect any stranded resources before providing TopologyHints
-	m.removeStaleState(klog.TODO())
+	m.removeStaleState(logger)
 	// Delegate to active policy
-	return m.policy.GetTopologyHints(context.TODO(), m.state, pod, container)
+	return m.policy.GetTopologyHints(logger, m.state, pod, container)
 }
 
 // TODO: move the method to the upper level, to re-use it under the CPU and memory managers
@@ -372,7 +376,10 @@ func (m *manager) removeStaleState(logger klog.Logger) {
 }
 
 func (m *manager) policyRemoveContainerByRef(podUID string, containerName string) {
-	m.policy.RemoveContainer(context.TODO(), m.state, podUID, containerName)
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	// This should be replaced with an appropriate logger when refactoring this function to accept a logger parameter.
+	logger := klog.TODO()
+	m.policy.RemoveContainer(logger, m.state, podUID, containerName)
 	m.containerMap.RemoveByContainerRef(podUID, containerName)
 }
 

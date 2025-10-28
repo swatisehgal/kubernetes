@@ -344,7 +344,6 @@ func NewContainerManager(mountUtil mount.Interface, cadvisorInterface cadvisor.I
 	cm.topologyManager.AddHintProvider(logger, cm.cpuManager)
 
 	cm.memoryManager, err = memorymanager.NewManager(
-		context.TODO(),
 		nodeConfig.MemoryManagerPolicy,
 		machineInfo,
 		cm.GetNodeAllocatableReservation(),

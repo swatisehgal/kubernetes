@@ -39,15 +39,16 @@ func (m *fakeManager) Start(ctx context.Context, activePods ActivePodsFunc, sour
 	return nil
 }
 
-func (m *fakeManager) Policy(ctx context.Context) Policy {
-	logger := klog.FromContext(ctx)
+func (m *fakeManager) Policy() Policy {
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	logger := klog.TODO()
 	logger.Info("Policy()")
-	return NewPolicyNone(ctx)
+	return NewPolicyNone()
 }
 
 func (m *fakeManager) Allocate(pod *v1.Pod, container *v1.Container) error {
-	ctx := context.TODO()
-	logger := klog.FromContext(ctx)
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	logger := klog.TODO()
 	logger.Info("Allocate", "pod", klog.KObj(pod), "containerName", container.Name)
 	return nil
 }
@@ -70,15 +71,15 @@ func (m *fakeManager) RemoveContainer(ctx context.Context, containerID string) e
 }
 
 func (m *fakeManager) GetTopologyHints(pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
-	ctx := context.TODO()
-	logger := klog.FromContext(ctx)
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	logger := klog.TODO()
 	logger.Info("Get Topology Hints", "pod", klog.KObj(pod), "containerName", container.Name)
 	return map[string][]topologymanager.TopologyHint{}
 }
 
 func (m *fakeManager) GetPodTopologyHints(pod *v1.Pod) map[string][]topologymanager.TopologyHint {
-	ctx := context.TODO()
-	logger := klog.FromContext(ctx)
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	logger := klog.TODO()
 	logger.Info("Get Pod Topology Hints", "pod", klog.KObj(pod))
 	return map[string][]topologymanager.TopologyHint{}
 }
@@ -102,8 +103,9 @@ func (m *fakeManager) GetMemory(ctx context.Context, podUID, containerName strin
 }
 
 // NewFakeManager creates empty/fake memory manager
-func NewFakeManager(ctx context.Context) Manager {
-	logger := klog.LoggerWithName(klog.FromContext(ctx), "memory-mgr.fake")
+func NewFakeManager() Manager {
+	// Use klog.TODO() because we currently do not have a proper logger to pass in.
+	logger := klog.LoggerWithName(klog.TODO(), "memory-mgr.fake")
 	return &fakeManager{
 		// logger: logger,
 		state: state.NewMemoryState(logger),

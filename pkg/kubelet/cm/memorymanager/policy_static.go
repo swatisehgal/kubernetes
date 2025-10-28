@@ -17,7 +17,6 @@ limitations under the License.
 package memorymanager
 
 import (
-	"context"
 	"fmt"
 	"sort"
 
@@ -62,7 +61,7 @@ type staticPolicy struct {
 var _ Policy = &staticPolicy{}
 
 // NewPolicyStatic returns new static policy instance
-func NewPolicyStatic(ctx context.Context, machineInfo *cadvisorapi.MachineInfo, reserved systemReservedMemory, affinity topologymanager.Store) (Policy, error) {
+func NewPolicyStatic(machineInfo *cadvisorapi.MachineInfo, reserved systemReservedMemory, affinity topologymanager.Store) (Policy, error) {
 	var totalSystemReserved uint64
 	for _, node := range reserved {
 		if _, ok := node[v1.ResourceMemory]; !ok {
@@ -88,8 +87,7 @@ func (p *staticPolicy) Name() string {
 	return string(PolicyTypeStatic)
 }
 
-func (p *staticPolicy) Start(ctx context.Context, s state.State) error {
-	logger := klog.FromContext(ctx)
+func (p *staticPolicy) Start(logger klog.Logger, s state.State) error {
 	if err := p.validateState(logger, s); err != nil {
 		logger.Error(err, "Invalid state, please drain node and remove policy state file")
 		return err
@@ -98,9 +96,8 @@ func (p *staticPolicy) Start(ctx context.Context, s state.State) error {
 }
 
 // Allocate call is idempotent
-func (p *staticPolicy) Allocate(ctx context.Context, s state.State, pod *v1.Pod, container *v1.Container) (rerr error) {
+func (p *staticPolicy) Allocate(logger klog.Logger, s state.State, pod *v1.Pod, container *v1.Container) (rerr error) {
 	// allocate the memory only for guaranteed pods
-	logger := klog.FromContext(ctx)
 	logger = klog.LoggerWithValues(logger, "pod", klog.KObj(pod), "containerName", container.Name)
 	qos := v1qos.GetPodQOS(pod)
 	if qos != v1.PodQOSGuaranteed {
@@ -259,8 +256,8 @@ func (p *staticPolicy) getPodReusableMemory(pod *v1.Pod, numaAffinity bitmask.Bi
 }
 
 // RemoveContainer call is idempotent
-func (p *staticPolicy) RemoveContainer(ctx context.Context, s state.State, podUID string, containerName string) {
-	logger := klog.LoggerWithValues(klog.FromContext(ctx), "podUID", podUID, "containerName", containerName)
+func (p *staticPolicy) RemoveContainer(logger klog.Logger, s state.State, podUID string, containerName string) {
+	logger = klog.LoggerWithValues(logger, "podUID", podUID, "containerName", containerName)
 
 	blocks := s.GetMemoryBlocks(podUID, containerName)
 	if blocks == nil {
@@ -405,8 +402,8 @@ func getPodRequestedResources(pod *v1.Pod) (map[v1.ResourceName]uint64, error) {
 	return reqRsrcs, nil
 }
 
-func (p *staticPolicy) GetPodTopologyHints(ctx context.Context, s state.State, pod *v1.Pod) map[string][]topologymanager.TopologyHint {
-	logger := klog.LoggerWithValues(klog.FromContext(ctx), "pod", klog.KObj(pod))
+func (p *staticPolicy) GetPodTopologyHints(logger klog.Logger, s state.State, pod *v1.Pod) map[string][]topologymanager.TopologyHint {
+	logger = klog.LoggerWithValues(logger, "pod", klog.KObj(pod))
 
 	if v1qos.GetPodQOS(pod) != v1.PodQOSGuaranteed {
 		return nil
@@ -440,8 +437,8 @@ func (p *staticPolicy) GetPodTopologyHints(ctx context.Context, s state.State, p
 // GetTopologyHints implements the topologymanager.HintProvider Interface
 // and is consulted to achieve NUMA aware resource alignment among this
 // and other resource controllers.
-func (p *staticPolicy) GetTopologyHints(ctx context.Context, s state.State, pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
-	logger := klog.LoggerWithValues(klog.FromContext(ctx), "pod", klog.KObj(pod))
+func (p *staticPolicy) GetTopologyHints(logger klog.Logger, s state.State, pod *v1.Pod, container *v1.Container) map[string][]topologymanager.TopologyHint {
+	logger = klog.LoggerWithValues(logger, "pod", klog.KObj(pod))
 
 	if v1qos.GetPodQOS(pod) != v1.PodQOSGuaranteed {
 		return nil
@@ -910,7 +907,7 @@ func findBestHint(hints []topologymanager.TopologyHint) *topologymanager.Topolog
 }
 
 // GetAllocatableMemory returns the amount of allocatable memory for each NUMA node
-func (p *staticPolicy) GetAllocatableMemory(_ context.Context, s state.State) []state.Block {
+func (p *staticPolicy) GetAllocatableMemory(_ klog.Logger, s state.State) []state.Block {
 	var allocatableMemory []state.Block
 	machineState := s.GetMachineState()
 	for numaNodeID, numaNodeState := range machineState {

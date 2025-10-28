@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+	"k8s.io/klog/v2"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/pkg/kubelet/cm/containermap"
 	"k8s.io/kubernetes/pkg/kubelet/cm/memorymanager/state"
@@ -78,10 +79,10 @@ func returnPolicyByName(ctx context.Context, testCase testMemoryManager) Policy 
 			err: fmt.Errorf("fake reg error"),
 		}
 	case PolicyTypeStatic:
-		policy, _ := NewPolicyStatic(ctx, &testCase.machineInfo, testCase.reserved, topologymanager.NewFakeManager())
+		policy, _ := NewPolicyStatic(&testCase.machineInfo, testCase.reserved, topologymanager.NewFakeManager())
 		return policy
 	case policyTypeNone:
-		return NewPolicyNone(ctx)
+		return NewPolicyNone()
 	}
 	return nil
 }
@@ -94,27 +95,27 @@ func (p *mockPolicy) Name() string {
 	return string(policyTypeMock)
 }
 
-func (p *mockPolicy) Start(context.Context, state.State) error {
+func (p *mockPolicy) Start(klog.Logger, state.State) error {
 	return p.err
 }
 
-func (p *mockPolicy) Allocate(context.Context, state.State, *v1.Pod, *v1.Container) error {
+func (p *mockPolicy) Allocate(klog.Logger, state.State, *v1.Pod, *v1.Container) error {
 	return p.err
 }
 
-func (p *mockPolicy) RemoveContainer(context.Context, state.State, string, string) {
+func (p *mockPolicy) RemoveContainer(klog.Logger, state.State, string, string) {
 }
 
-func (p *mockPolicy) GetTopologyHints(context.Context, state.State, *v1.Pod, *v1.Container) map[string][]topologymanager.TopologyHint {
+func (p *mockPolicy) GetTopologyHints(klog.Logger, state.State, *v1.Pod, *v1.Container) map[string][]topologymanager.TopologyHint {
 	return nil
 }
 
-func (p *mockPolicy) GetPodTopologyHints(context.Context, state.State, *v1.Pod) map[string][]topologymanager.TopologyHint {
+func (p *mockPolicy) GetPodTopologyHints(klog.Logger, state.State, *v1.Pod) map[string][]topologymanager.TopologyHint {
 	return nil
 }
 
 // GetAllocatableMemory returns the amount of allocatable memory for each NUMA node
-func (p *mockPolicy) GetAllocatableMemory(context.Context, state.State) []state.Block {
+func (p *mockPolicy) GetAllocatableMemory(klog.Logger, state.State) []state.Block {
 	return []state.Block{}
 }
 
@@ -1914,7 +1915,6 @@ func getPolicyNameForOs() policyType {
 }
 
 func TestNewManager(t *testing.T) {
-	tCtx := ktesting.Init(t)
 	machineInfo := returnMachineInfo()
 	expectedReserved := systemReservedMemory{
 		0: map[v1.ResourceName]uint64{
@@ -2006,7 +2006,7 @@ func TestNewManager(t *testing.T) {
 			}
 			defer os.RemoveAll(stateFileDirectory)
 
-			mgr, err := NewManager(tCtx, string(testCase.policyName), &testCase.machineInfo, testCase.nodeAllocatableReservation, testCase.systemReservedMemory, stateFileDirectory, testCase.affinity)
+			mgr, err := NewManager(string(testCase.policyName), &testCase.machineInfo, testCase.nodeAllocatableReservation, testCase.systemReservedMemory, stateFileDirectory, testCase.affinity)
 
 			if !reflect.DeepEqual(err, testCase.expectedError) {
 				t.Errorf("Could not create the Memory Manager. Expected error: '%v', but got: '%v'",
