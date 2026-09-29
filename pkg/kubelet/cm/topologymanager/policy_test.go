@@ -24,10 +24,12 @@ import (
 	"k8s.io/api/core/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
+	"k8s.io/component-base/metrics/testutil"
 	"k8s.io/ktesting"
 	pkgfeatures "k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
+	"k8s.io/kubernetes/pkg/kubelet/metrics"
 )
 
 type policyMergeTestCase struct {
@@ -2046,18 +2048,15 @@ func TestCompareNUMAAffinityMasksWithAllocationStrategy(t *testing.T) {
 		{
 			description: "most-allocated packs onto the higher scoring hint",
 			strategy:    NUMAAllocationStrategyMostAllocated,
-			gateEnabled: true,
 			expected:    "candidate",
 		},
 		{
 			description: "the none strategy leaves the structural comparison alone",
 			strategy:    NUMAAllocationStrategyNone,
-			gateEnabled: true,
 			expected:    "current",
 		},
 		{
 			description: "an unset strategy leaves the structural comparison alone",
-			gateEnabled: true,
 			expected:    "current",
 		},
 	}
@@ -2214,7 +2213,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "most-allocated packs onto the higher scoring node",
 			strategy:    NUMAAllocationStrategyMostAllocated,
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
@@ -2226,7 +2224,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "least-allocated spreads onto the lower scoring node",
 			strategy:    NUMAAllocationStrategyLeastAllocated,
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 80},
@@ -2238,7 +2235,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "the aggregate across all providers decides the merged hint",
 			strategy:    NUMAAllocationStrategyMostAllocated,
-			gateEnabled: true,
 			// The first provider rates node0 above node1, but the average over
 			// both providers rates node1 higher, and that is what has to win.
 			hints: [][]TopologyHint{
@@ -2256,7 +2252,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "equal scores leave the structural tiebreak in charge",
 			strategy:    NUMAAllocationStrategyMostAllocated,
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 50},
@@ -2268,7 +2263,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "an unscored hint does not win least-allocated by default",
 			strategy:    NUMAAllocationStrategyLeastAllocated,
-			gateEnabled: true,
 			// Score 0 means unscored. Were it read as a value, node1 would
 			// look like the emptiest node and take every least-allocated
 			// comparison.
@@ -2283,7 +2277,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "the strategy never widens the affinity mask",
 			strategy:    NUMAAllocationStrategyMostAllocated,
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
@@ -2295,7 +2288,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "a preferred hint beats a higher scoring non-preferred one",
 			strategy:    NUMAAllocationStrategyMostAllocated,
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
@@ -2307,7 +2299,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		{
 			description: "the none strategy is inert",
 			strategy:    NUMAAllocationStrategyNone,
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
@@ -2318,7 +2309,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 		},
 		{
 			description: "an unset strategy is inert",
-			gateEnabled: true,
 			hints: [][]TopologyHint{
 				{
 					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
@@ -2333,7 +2323,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 			policyName:    PolicyBestEffort,
 			preferClosest: true,
 			strategy:      NUMAAllocationStrategyMostAllocated,
-			gateEnabled:   true,
 			// Both masks pair two nodes at distance 11, so Closest rates them
 			// equally and falls back to the lower-numbered mask.
 			hints: [][]TopologyHint{
@@ -2350,7 +2339,6 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 			policyName:    PolicyBestEffort,
 			preferClosest: true,
 			strategy:      NUMAAllocationStrategyMostAllocated,
-			gateEnabled:   true,
 			// Nodes 1 and 2 sit further apart (average 11) than nodes 0 and 1
 			// (average 10.5), so Closest separates the two masks on its own and
 			// the higher score must not override it.
@@ -2395,6 +2383,170 @@ func TestHintMergerWithAllocationStrategy(t *testing.T) {
 			result := merger.Merge(logger)
 			if !result.NUMANodeAffinity.IsEqual(tc.expectedAffinity) {
 				t.Errorf("Expected affinity %v, got %v", tc.expectedAffinity, result.NUMANodeAffinity)
+			}
+		})
+	}
+}
+
+// TestHintMergerScoreSelectionMetric checks the counter which tells an
+// operator that numa-allocation-strategy is actually steering placement.
+//
+// Every fixture asserts the selected affinity alongside the counter: the
+// counter is meant to track the selection, so a case which got the count right
+// off the back of the wrong placement has not proved anything.
+func TestHintMergerScoreSelectionMetric(t *testing.T) {
+	tcases := []struct {
+		description string
+		// numaInfo defaults to commonNUMAInfoTwoNodes.
+		numaInfo         *NUMAInfo
+		strategy         string
+		hints            [][]TopologyHint
+		expectedAffinity bitmask.BitMask
+		expectedCount    float64
+	}{
+		{
+			description: "most-allocated packing away from the structural tiebreak is counted",
+			strategy:    NUMAAllocationStrategyMostAllocated,
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 80},
+				},
+			},
+			expectedAffinity: NewTestBitMask(1),
+			expectedCount:    1,
+		},
+		{
+			description: "least-allocated spreading away from the structural tiebreak is counted",
+			strategy:    NUMAAllocationStrategyLeastAllocated,
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 80},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 20},
+				},
+			},
+			expectedAffinity: NewTestBitMask(1),
+			expectedCount:    1,
+		},
+		{
+			description: "a merge is counted once however many comparisons the strategy flipped",
+			numaInfo:    commonNUMAInfoFourNodes(),
+			strategy:    NUMAAllocationStrategyMostAllocated,
+			// The fold moves off node0 onto node1 and again onto node2, so the
+			// strategy decides twice within the one merge. The counter tracks
+			// merges, not comparisons, so it still reads 1.
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 10},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 50},
+					{NUMANodeAffinity: NewTestBitMask(2), Preferred: true, Score: 90},
+				},
+			},
+			expectedAffinity: NewTestBitMask(2),
+			expectedCount:    1,
+		},
+		{
+			description: "a strategy agreeing with the structural tiebreak is not counted",
+			strategy:    NUMAAllocationStrategyMostAllocated,
+			// most-allocated picks node0, which is the node Narrowest settles
+			// the tie on anyway, so the selection did not change.
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 80},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 20},
+				},
+			},
+			expectedAffinity: NewTestBitMask(0),
+			expectedCount:    0,
+		},
+		{
+			description: "equal scores leave the structural tiebreak in charge and are not counted",
+			strategy:    NUMAAllocationStrategyMostAllocated,
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 50},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 50},
+				},
+			},
+			expectedAffinity: NewTestBitMask(0),
+			expectedCount:    0,
+		},
+		{
+			description: "a selection the structural comparison settles on its own is not counted",
+			strategy:    NUMAAllocationStrategyMostAllocated,
+			// The wider mask scores higher but Narrowest separates the two on
+			// its own, so the strategy never gets a say.
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
+					{NUMANodeAffinity: NewTestBitMask(0, 1), Preferred: true, Score: 90},
+				},
+			},
+			expectedAffinity: NewTestBitMask(0),
+			expectedCount:    0,
+		},
+		{
+			description: "nothing is counted under the none strategy",
+			strategy:    NUMAAllocationStrategyNone,
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 80},
+				},
+			},
+			expectedAffinity: NewTestBitMask(0),
+			expectedCount:    0,
+		},
+		{
+			description: "nothing is counted under an unset strategy",
+			hints: [][]TopologyHint{
+				{
+					{NUMANodeAffinity: NewTestBitMask(0), Preferred: true, Score: 20},
+					{NUMANodeAffinity: NewTestBitMask(1), Preferred: true, Score: 80},
+				},
+			},
+			expectedAffinity: NewTestBitMask(0),
+			expectedCount:    0,
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.description, func(t *testing.T) {
+			logger, _ := ktesting.NewTestContext(t)
+
+			// An unregistered metric silently discards every update and always
+			// reads back zero, which would pass every expectedCount of 0.
+			metrics.Register()
+			metrics.TopologyManagerNUMAScoreSelectionTotal.Reset()
+
+			numaInfo := tc.numaInfo
+			if numaInfo == nil {
+				numaInfo = commonNUMAInfoTwoNodes()
+			}
+
+			opts := PolicyOptions{NUMAAllocationStrategy: tc.strategy}
+			merger := NewHintMerger(numaInfo, unnamedHintLists(tc.hints), PolicySingleNumaNode, opts)
+
+			result := merger.Merge(logger)
+			if !result.NUMANodeAffinity.IsEqual(tc.expectedAffinity) {
+				t.Errorf("Expected affinity %v, got %v", tc.expectedAffinity, result.NUMANodeAffinity)
+			}
+
+			// Read every strategy label rather than just the configured one, so
+			// that an increment landing on the wrong label is a failure rather
+			// than an increment which simply goes unseen.
+			for _, strategy := range []string{NUMAAllocationStrategyMostAllocated, NUMAAllocationStrategyLeastAllocated} {
+				expected := float64(0)
+				if strategy == tc.strategy {
+					expected = tc.expectedCount
+				}
+				count, err := testutil.GetCounterMetricValue(metrics.TopologyManagerNUMAScoreSelectionTotal.WithLabelValues(strategy))
+				if err != nil {
+					t.Fatalf("failed to read the %s selection counter: %v", strategy, err)
+				}
+				if count != expected {
+					t.Errorf("Expected the %s selection counter to read %v, got %v", strategy, expected, count)
+				}
 			}
 		})
 	}
@@ -2910,7 +3062,6 @@ func TestHintMergerWithScoreWeights(t *testing.T) {
 			description:      "without weights most-allocated follows the CPU and memory majority",
 			strategy:         NUMAAllocationStrategyMostAllocated,
 			weights:          defaultNUMAScoreWeights(),
-			gateEnabled:      true,
 			expectedAffinity: NewTestBitMask(0),
 			expectedScore:    62,
 		},
@@ -2920,7 +3071,6 @@ func TestHintMergerWithScoreWeights(t *testing.T) {
 			description:      "amplifying the GPU makes most-allocated follow it instead",
 			strategy:         NUMAAllocationStrategyMostAllocated,
 			weights:          map[string]int{"nvidia.com/gpu": 10},
-			gateEnabled:      true,
 			expectedAffinity: NewTestBitMask(1),
 			expectedScore:    75,
 		},
@@ -2930,7 +3080,6 @@ func TestHintMergerWithScoreWeights(t *testing.T) {
 			description:      "without weights least-allocated follows the CPU and memory majority",
 			strategy:         NUMAAllocationStrategyLeastAllocated,
 			weights:          defaultNUMAScoreWeights(),
-			gateEnabled:      true,
 			expectedAffinity: NewTestBitMask(1),
 			expectedScore:    25,
 		},
@@ -2938,7 +3087,6 @@ func TestHintMergerWithScoreWeights(t *testing.T) {
 			description:      "amplifying the GPU makes least-allocated follow it instead",
 			strategy:         NUMAAllocationStrategyLeastAllocated,
 			weights:          map[string]int{"nvidia.com/gpu": 10},
-			gateEnabled:      true,
 			expectedAffinity: NewTestBitMask(0),
 			expectedScore:    25,
 		},
@@ -2947,7 +3095,6 @@ func TestHintMergerWithScoreWeights(t *testing.T) {
 			description: "excluding the CPU and memory leaves the GPU deciding on its own",
 			strategy:    NUMAAllocationStrategyMostAllocated,
 			weights:     map[string]int{"cpu": 0, "memory": 0, "nvidia.com/gpu": 1},
-			gateEnabled: true,
 			// The GPU is the only resource left with a weight, so the merged
 			// score is its own.
 			expectedAffinity: NewTestBitMask(1),
@@ -2957,7 +3104,6 @@ func TestHintMergerWithScoreWeights(t *testing.T) {
 			description: "weights do nothing without an allocation strategy",
 			strategy:    NUMAAllocationStrategyNone,
 			weights:     map[string]int{"nvidia.com/gpu": 10},
-			gateEnabled: true,
 			// The merged hint still carries the weighted score, but with no
 			// strategy to consult it the structural tiebreak decides.
 			expectedAffinity: NewTestBitMask(0),
