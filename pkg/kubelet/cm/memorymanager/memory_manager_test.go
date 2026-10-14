@@ -2055,6 +2055,9 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestGetTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	testCases := []testMemoryManager{
 		{

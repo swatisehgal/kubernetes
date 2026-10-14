@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/ktesting"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager"
 	"k8s.io/kubernetes/pkg/kubelet/cm/topologymanager/bitmask"
 )
 
@@ -267,6 +268,9 @@ func TestDeviceManagerScoreCalculation(t *testing.T) {
 }
 
 func TestGenerateDeviceTopologyHintsWithScore(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	resource := "gpu"
 
@@ -319,4 +323,56 @@ func TestGenerateDeviceTopologyHintsWithScore(t *testing.T) {
 			t.Errorf("NUMA 1 hint: expected score 1, got %d", *node1Hint)
 		}
 	})
+}
+
+// TestGenerateDeviceTopologyHintsSkipsScoreWhenUnused checks that hint
+// generation leaves Score at 0 when no NUMA allocation strategy is
+// configured. calculateDeviceScore walks every device of the resource once
+// per candidate NUMA mask, so skipping it when nothing reads the score is the
+// point; the merge treats 0 as "no signal" and excludes it from aggregation.
+func TestGenerateDeviceTopologyHintsSkipsScoreWhenUnused(t *testing.T) {
+	logger, _ := ktesting.NewTestContext(t)
+	resource := "nvidia.com/gpu"
+
+	newManager := func() *ManagerImpl {
+		m := ManagerImpl{
+			allDevices: NewResourceDeviceInstances(),
+			allocatedDevices: map[string]sets.Set[string]{
+				resource: sets.New[string]("gpu0"),
+			},
+			numaNodes: []int{0, 1},
+		}
+		m.allDevices[resource] = DeviceInstances{
+			"gpu0": {ID: "gpu0", Topology: &pluginapi.TopologyInfo{Nodes: []*pluginapi.NUMANode{{ID: 0}}}},
+			"gpu1": {ID: "gpu1", Topology: &pluginapi.TopologyInfo{Nodes: []*pluginapi.NUMANode{{ID: 0}}}},
+		}
+		markAllDevicesHealthy(&m)
+		return &m
+	}
+
+	restore := topologymanager.SetScoringEnabled(true)
+	scored := newManager().generateDeviceTopologyHints(logger, resource, sets.New[string]("gpu1"), nil, 1)
+	restore()
+
+	if len(scored) == 0 {
+		t.Fatalf("expected at least one hint")
+	}
+	if scored[0].Score == 0 {
+		t.Fatalf("expected a score while scoring is on, got %v", scored)
+	}
+
+	defer topologymanager.SetScoringEnabled(false)()
+	unscored := newManager().generateDeviceTopologyHints(logger, resource, sets.New[string]("gpu1"), nil, 1)
+
+	if len(unscored) != len(scored) {
+		t.Fatalf("expected the same hints either way, got %v and %v", scored, unscored)
+	}
+	for i, hint := range unscored {
+		if hint.Score != 0 {
+			t.Errorf("hint %d: expected Score 0 while scoring is off, got %d", i, hint.Score)
+		}
+		if !hint.NUMANodeAffinity.IsEqual(scored[i].NUMANodeAffinity) || hint.Preferred != scored[i].Preferred {
+			t.Errorf("hint %d: affinity and preference must not depend on scoring, got %v want %v", i, hint, scored[i])
+		}
+	}
 }

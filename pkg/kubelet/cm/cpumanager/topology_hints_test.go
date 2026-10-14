@@ -229,6 +229,9 @@ func TestPodGuaranteedCPUs(t *testing.T) {
 }
 
 func TestGetTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	machineInfo := returnMachineInfo()
 
@@ -282,6 +285,9 @@ func TestGetTopologyHints(t *testing.T) {
 }
 
 func TestGetPodTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	machineInfo := returnMachineInfo()
 
@@ -335,6 +341,9 @@ func TestGetPodTopologyHints(t *testing.T) {
 }
 
 func TestGetPodTopologyHintsWithPolicyOptions(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	testPod1 := makePod("fakePod", "fakeContainer", "2", "2")
 	testContainer1 := &testPod1.Spec.Containers[0]
 
@@ -535,6 +544,9 @@ func TestGetPodTopologyHintsWithPolicyOptions(t *testing.T) {
 }
 
 func TestTopologyHintsPodLevelResources(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	machineInfo := returnMachineInfo()
 	testPodGuaranteedOverridePLR := makePodWithPodLevelResources("guaranteedPod", "3", "3", "c1", "1", "2")

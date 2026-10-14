@@ -3472,6 +3472,9 @@ func TestStaticPolicyRemoveContainer(t *testing.T) {
 }
 
 func TestStaticPolicyGetTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	testCases := []testStaticPolicy{
 		{
@@ -4035,6 +4038,9 @@ func TestStaticPolicyGetTopologyHints(t *testing.T) {
 }
 
 func TestStaticPolicyGetPodTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	testCases := []testStaticPolicy{
 		{
@@ -4452,6 +4458,9 @@ func TestStaticPolicyGetPodTopologyHints(t *testing.T) {
 }
 
 func TestCalculateHintsScore(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	findHint := func(hints []topologymanager.TopologyHint, mask bitmask.BitMask) *topologymanager.TopologyHint {
 		for i := range hints {
 			if hints[i].NUMANodeAffinity.IsEqual(mask) {

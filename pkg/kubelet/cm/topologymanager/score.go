@@ -16,6 +16,38 @@ limitations under the License.
 
 package topologymanager
 
+import "sync/atomic"
+
+// scoringEnabled records whether the configured policy reads hint Scores. The
+// kubelet builds one topology manager, before any hint provider runs, so
+// recording the answer here is enough and saves threading it through every
+// provider.
+var scoringEnabled atomic.Bool
+
+// ScoringEnabled reports whether hint providers need to compute a Score.
+//
+// Scores are read only by a numa-allocation-strategy, which is off by
+// default, and computing one costs real work: the device manager walks every
+// device of a resource once per candidate NUMA mask, and the mask count grows
+// as 2^numaNodes. A provider that checks this first skips that work entirely
+// on a default node.
+//
+// Skipping leaves the hint at Score 0, which the merge already treats as "no
+// signal" and excludes from aggregation, so hint selection is unchanged.
+func ScoringEnabled() bool {
+	return scoringEnabled.Load()
+}
+
+// SetScoringEnabled forces whether hint providers compute a Score, and returns
+// a function restoring the previous setting.
+//
+// Only hint provider tests need this: they build providers directly rather
+// than through NewManager, which is what normally decides.
+func SetScoringEnabled(enabled bool) func() {
+	previous := scoringEnabled.Swap(enabled)
+	return func() { scoringEnabled.Store(previous) }
+}
+
 // UtilizationScore turns a pair of resource counts into the Score of a
 // TopologyHint: the share of the allocatable resources on the hint's NUMA
 // node(s) that is already assigned, as a percentage.

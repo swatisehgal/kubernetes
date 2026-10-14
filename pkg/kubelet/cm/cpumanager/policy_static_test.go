@@ -3341,6 +3341,9 @@ type expectedHintScore struct {
 }
 
 func TestGenerateCPUTopologyHintsScore(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	// topoDualSocketNoHT: 8 CPUs, 2 NUMA nodes, 4 CPUs each
 	// NUMA 0: CPUs {0,1,2,3}, NUMA 1: CPUs {4,5,6,7}
 
@@ -3493,6 +3496,9 @@ func TestGenerateCPUTopologyHintsScore(t *testing.T) {
 // Score has to describe the node, not the caller: the already allocated CPUs are
 // passed in as the usable set, but they are assigned, not free.
 func TestRegeneratedCPUTopologyHintsScore(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	// topoDualSocketNoHT: 8 CPUs, 2 NUMA nodes, 4 CPUs each.
 	// NUMA 0: CPUs {0,1,2,3}, NUMA 1: CPUs {4,5,6,7}.
 	//

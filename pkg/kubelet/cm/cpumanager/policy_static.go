@@ -1429,9 +1429,12 @@ func (p *staticPolicy) generateCPUTopologyHints(usableCPUs cpuset.CPUSet, reusab
 		// everything assigned across those nodes over everything allocatable
 		// across them. That is not the mean of the per-node scores once the
 		// nodes differ in size.
-		allocatable := cpusInMaskSet.Difference(p.reservedCPUs).Size()
-		free := freeCPUs.Intersection(cpusInMaskSet).Size()
-		score := topologymanager.UtilizationScore(int64(allocatable), int64(allocatable-free))
+		var score int64
+		if topologymanager.ScoringEnabled() {
+			allocatable := cpusInMaskSet.Difference(p.reservedCPUs).Size()
+			free := freeCPUs.Intersection(cpusInMaskSet).Size()
+			score = topologymanager.UtilizationScore(int64(allocatable), int64(allocatable-free))
+		}
 
 		// Otherwise, create a new hint from the numa node bitmask and add it to the
 		// list of hints.  We set all hint preferences to 'false' on the first

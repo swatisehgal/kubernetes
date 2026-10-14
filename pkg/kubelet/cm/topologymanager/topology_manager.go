@@ -185,6 +185,11 @@ var _ Manager = &manager{}
 
 // NewManager creates a new TopologyManager based on provided policy and scope
 func NewManager(logger klog.Logger, topology []cadvisorapi.Node, topologyPolicyName string, topologyScopeName string, topologyPolicyOptions map[string]string) (Manager, error) {
+	// Hint providers consult ScoringEnabled before computing a Score. Nothing
+	// reads a Score until a policy with a numa-allocation-strategy is built
+	// below, so start from off.
+	scoringEnabled.Store(false)
+
 	// When policy is none, the scope is not relevant, so we can short circuit here.
 	if topologyPolicyName == PolicyNone {
 		logger.Info("Creating topology manager with none policy")
@@ -206,6 +211,13 @@ func NewManager(logger klog.Logger, topology []cadvisorapi.Node, topologyPolicyN
 	if topologyPolicyName != PolicyNone && len(numaInfo.Nodes) > opts.MaxAllowableNUMANodes {
 		return nil, fmt.Errorf("unsupported on machines with more than %v NUMA Nodes", opts.MaxAllowableNUMANodes)
 	}
+
+	// No feature gate check and no empty check: NewPolicyOptions above
+	// supplies the default of NUMAAllocationStrategyNone, rejects an empty
+	// value, and refuses the option outright while the alpha options are
+	// disabled. NewHintMerger has to guard both because it is handed
+	// PolicyOptions rather than building them.
+	scoringEnabled.Store(opts.NUMAAllocationStrategy != NUMAAllocationStrategyNone)
 
 	var policy Policy
 	switch topologyPolicyName {

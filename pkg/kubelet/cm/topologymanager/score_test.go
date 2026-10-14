@@ -16,7 +16,14 @@ limitations under the License.
 
 package topologymanager
 
-import "testing"
+import (
+	"testing"
+
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
+	"k8s.io/ktesting"
+	pkgfeatures "k8s.io/kubernetes/pkg/features"
+)
 
 func TestUtilizationScore(t *testing.T) {
 	tcases := []struct {
@@ -89,6 +96,102 @@ func TestUtilizationScore(t *testing.T) {
 			score := UtilizationScore(tc.allocatable, tc.assigned)
 			if score != tc.expected {
 				t.Errorf("UtilizationScore(%d, %d) = %d, expected %d", tc.allocatable, tc.assigned, score, tc.expected)
+			}
+		})
+	}
+}
+
+// TestNewManagerSetsScoringEnabled checks that building a manager records
+// whether hint providers need to compute a Score, which is the only thing
+// that turns scoring on outside tests.
+func TestNewManagerSetsScoringEnabled(t *testing.T) {
+	logger, _ := ktesting.NewTestContext(t)
+
+	tcases := []struct {
+		description   string
+		policyName    string
+		policyOptions map[string]string
+		alphaGate     bool
+		expected      bool
+		expectErr     bool
+	}{
+		{
+			description: "the none policy never scores",
+			policyName:  PolicyNone,
+			alphaGate:   true,
+			expected:    false,
+		},
+		{
+			// NewManager is the only thing that turns scoring on, and it
+			// cannot while the gate is off: NewPolicyOptions refuses the
+			// option first. This is why the flag needs no gate check of its
+			// own.
+			description:   "the option is refused while the alpha gate is off",
+			policyName:    PolicyBestEffort,
+			policyOptions: map[string]string{NUMAAllocationStrategy: NUMAAllocationStrategyMostAllocated},
+			alphaGate:     false,
+			expected:      false,
+			expectErr:     true,
+		},
+		{
+			description: "no options at all while the alpha gate is off",
+			policyName:  PolicyBestEffort,
+			alphaGate:   false,
+			expected:    false,
+		},
+		{
+			description: "no allocation strategy means no scoring",
+			policyName:  PolicyBestEffort,
+			alphaGate:   true,
+			expected:    false,
+		},
+		{
+			description:   "an explicit none strategy means no scoring",
+			policyName:    PolicyBestEffort,
+			policyOptions: map[string]string{NUMAAllocationStrategy: NUMAAllocationStrategyNone},
+			alphaGate:     true,
+			expected:      false,
+		},
+		{
+			description:   "most-allocated turns scoring on",
+			policyName:    PolicyBestEffort,
+			policyOptions: map[string]string{NUMAAllocationStrategy: NUMAAllocationStrategyMostAllocated},
+			alphaGate:     true,
+			expected:      true,
+		},
+		{
+			description:   "least-allocated turns scoring on",
+			policyName:    PolicySingleNumaNode,
+			policyOptions: map[string]string{NUMAAllocationStrategy: NUMAAllocationStrategyLeastAllocated},
+			alphaGate:     true,
+			expected:      true,
+		},
+		{
+			description:   "weights alone do not turn scoring on",
+			policyName:    PolicyRestricted,
+			policyOptions: map[string]string{NUMAScoreWeights: "cpu=5"},
+			alphaGate:     true,
+			expected:      false,
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.description, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, pkgfeatures.TopologyManagerPolicyAlphaOptions, tc.alphaGate)
+			// Start from the opposite value so the assertion cannot pass by
+			// NewManager simply leaving the flag alone.
+			defer SetScoringEnabled(!tc.expected)()
+
+			_, err := NewManager(logger, nil, tc.policyName, ContainerTopologyScope, tc.policyOptions)
+			if tc.expectErr {
+				if err == nil {
+					t.Fatalf("expected NewManager to fail")
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := ScoringEnabled(); got != tc.expected {
+				t.Errorf("expected ScoringEnabled() to be %v, got %v", tc.expected, got)
 			}
 		})
 	}

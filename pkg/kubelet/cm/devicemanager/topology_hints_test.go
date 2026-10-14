@@ -64,6 +64,9 @@ func makeSocketMask(sockets ...int) bitmask.BitMask {
 }
 
 func TestGetTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	tcases := getCommonTestCases()
 
 	logger, _ := ktesting.NewTestContext(t)
@@ -931,6 +934,9 @@ func TestGetPodDeviceRequest(t *testing.T) {
 }
 
 func TestGetPodTopologyHints(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	tcases := getCommonTestCases()
 	tcases = append(tcases, getPodScopeTestCases()...)
@@ -1064,6 +1070,9 @@ func TestDeviceNUMANodes(t *testing.T) {
 }
 
 func TestGenerateDeviceTopologyHintsFiltersNUMANodes(t *testing.T) {
+	// Hint providers skip scoring unless a NUMA allocation strategy is
+	// configured, which these tests do not go through NewManager to set.
+	defer topologymanager.SetScoringEnabled(true)()
 	logger, _ := ktesting.NewTestContext(t)
 	resource := "gpu"
 

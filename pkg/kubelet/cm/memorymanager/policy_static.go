@@ -732,16 +732,19 @@ func regenerateHints(logger klog.Logger, machineState state.NUMANodeMap, pod *v1
 		// The container's own blocks are reserved in the machine state already,
 		// so they count as assigned here. A hint spanning several NUMA nodes
 		// scores the span as a whole.
-		var allocatable, free int64
-		for _, nodeID := range b.NUMAAffinity {
-			allocatable += int64(machineState[nodeID].MemoryMap[b.Type].Allocatable)
-			free += int64(machineState[nodeID].MemoryMap[b.Type].Free)
+		var score int64
+		if topologymanager.ScoringEnabled() {
+			var allocatable, free int64
+			for _, nodeID := range b.NUMAAffinity {
+				allocatable += int64(machineState[nodeID].MemoryMap[b.Type].Allocatable)
+				free += int64(machineState[nodeID].MemoryMap[b.Type].Free)
+			}
+			score = topologymanager.UtilizationScore(allocatable, allocatable-free)
 		}
-		assigned := allocatable - free
 		hints[string(b.Type)] = append(hints[string(b.Type)], topologymanager.TopologyHint{
 			NUMANodeAffinity: numaAffinities[i],
 			Preferred:        true,
-			Score:            topologymanager.UtilizationScore(allocatable, assigned),
+			Score:            score,
 		})
 	}
 	return hints
@@ -1043,13 +1046,16 @@ func (p *staticPolicy) calculateHints(machineState state.NUMANodeMap, pod *v1.Po
 			// Convert before subtracting: a free total larger than the
 			// allocatable one means the accounting is already wrong, and in
 			// uint64 that underflows into a plausible looking score.
-			allocatable := int64(totalAllocatableSize[resourceName])
-			free := int64(totalFreeSize[resourceName])
-			assigned := allocatable - free
+			var score int64
+			if topologymanager.ScoringEnabled() {
+				allocatable := int64(totalAllocatableSize[resourceName])
+				free := int64(totalFreeSize[resourceName])
+				score = topologymanager.UtilizationScore(allocatable, allocatable-free)
+			}
 			hints[string(resourceName)] = append(hints[string(resourceName)], topologymanager.TopologyHint{
 				NUMANodeAffinity: mask,
 				Preferred:        false,
-				Score:            topologymanager.UtilizationScore(allocatable, assigned),
+				Score:            score,
 			})
 		}
 	})
